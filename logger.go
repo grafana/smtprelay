@@ -30,10 +30,11 @@ func setupLogger() {
 
 	level, err := logrus.ParseLevel(*logLevel)
 	if err != nil {
-		logrus.SetLevel(logrus.DebugLevel)
+		level = logrus.DebugLevel
+
 		log.WithField("given_level", *logLevel).
 			Warn("could not parse log level, defaulting to 'debug'")
-	} else {
-		logrus.SetLevel(level)
 	}
+
+	logrus.SetLevel(level)
 }
