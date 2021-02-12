@@ -66,6 +66,8 @@ it from `REMOTE_PASS` environment variable.
 
 It was added to support loading secret from environment variable
 
+Use `./smtprelay -help` for help on config options.
+
 ### Metrics
 
 Service exposes Prometheus metrics on `<url>:8080/metrics`, metrics port
@@ -85,3 +87,12 @@ supported levels: `trace, debug, info, warning, error, fatal, panic`
 We publish images on DockerHub at `grafana/smtprelay`
 
 See [all tags](https://hub.docker.com/r/grafana/smtprelay/tags)
+
+### Testing
+To test code or config, start smtprelay, and send test email using `swaks`.
+
+> Tip: you can install `swaks` using `sudo apt install swaks` on Ubuntu.
+
+```bash
+swaks --to <email> --from=<email> --server localhost:2525 --h-Subject: "Hello from smtprelay" --h-Body: "This is test email from smtprelay"
+```
