@@ -232,6 +232,10 @@ func generateUUID() string {
 }
 
 func main() {
+	// load config as first thing
+	ConfigLoad()
+
+	// config is used here, call after config load
 	go handleMetrics()
 
 	// Cipher suites as defined in stock Go but without 3DES and RC4
@@ -258,8 +262,6 @@ func main() {
 		tls.TLS_RSA_WITH_AES_128_CBC_SHA,
 		tls.TLS_RSA_WITH_AES_256_CBC_SHA,
 	}
-
-	ConfigLoad()
 
 	if *versionInfo {
 		fmt.Printf("smtprelay/%s\n", VERSION)
