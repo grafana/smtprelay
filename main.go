@@ -102,33 +102,42 @@ func senderChecker(peer smtpd.Peer, addr string) error {
 
 func recipientChecker(allowed, denied string) func(peer smtpd.Peer, addr string) error {
 	return func(peer smtpd.Peer, addr string) error {
-		if allowed == "" && denied == "" {
-			// allow any recipient, disable recipient check
-			return nil
+		// First, we check the deny list as that one takes precedence.
+		if denied != "" {
+			deniedRegexp, err := regexp.Compile(denied)
+			if err != nil {
+				log.WithField("denied_recipients", denied).
+					WithField("err", err).
+					Warn("denied_recipients invalid")
+				return observeErr(smtpd.Error{Code: 451, Message: "Invalid recipient address"})
+			}
+
+			if deniedRegexp.MatchString(addr) {
+				log.WithField("address", addr).Warn("receipt address is part of the deny list")
+				return observeErr(smtpd.Error{Code: 451, Message: "Denied recipient address"})
+			}
 		}
 
-		allowedRegexp, err := regexp.Compile(allowed)
-		if err != nil {
-			log.WithField("allow_recipients", allowed).
-				WithField("err", err).
-				Warn("allowed_recipients invalid")
+		// Then, we check the allow list.
+		if allowed != "" {
+			allowedRegexp, err := regexp.Compile(allowed)
+			if err != nil {
+				log.WithField("allow_recipients", allowed).
+					WithField("err", err).
+					Warn("allowed_recipients invalid")
+				return observeErr(smtpd.Error{Code: 451, Message: "Invalid recipient address"})
+			}
+
+			if allowedRegexp.MatchString(addr) {
+				return nil
+			}
+
+			log.WithField("address", addr).Warn("Invalid recipient address")
 			return observeErr(smtpd.Error{Code: 451, Message: "Invalid recipient address"})
 		}
 
-		deniedRegexp, err := regexp.Compile(denied)
-		if err != nil {
-			log.WithField("denied_recipients", denied).
-				WithField("err", err).
-				Warn("denied_recipients invalid")
-			return observeErr(smtpd.Error{Code: 451, Message: "Invalid recipient address"})
-		}
-
-		if allowedRegexp.MatchString(addr) && !deniedRegexp.MatchString(addr) {
-			return nil
-		}
-
-		log.WithField("address", addr).Warn("Invalid recipient address")
-		return observeErr(smtpd.Error{Code: 451, Message: "Invalid recipient address"})
+		// No deny nor allow list, receipient check disabled.
+		return nil
 	}
 }
 

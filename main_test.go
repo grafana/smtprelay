@@ -24,15 +24,30 @@ func Test_RecepientsCheck(t *testing.T) {
 		expected error
 	}{
 		{
-			name:     "with emails that are denied",
-			emails:   []string{"delivery@example.com", "example@email.com", "<example@email.com>"},
-			denied:   "(.+@example.(org|com)|.+@email.com)",
+			name:   "with emails that are denied",
+			emails: []string{"delivery@example.com", "example@email.com", "<example@email.com>"},
+		},
+		{
+			name:     "with emails not in the allow list",
+			emails:   []string{"delivery@grafana.com"},
+			allowed:  "(.+@example.(org|com)|.+@email.com)",
 			expected: observeErr(smtpd.Error{Code: 451, Message: "Invalid recipient address"}),
 		},
 		{
+			name:     "with emails that are denied",
+			emails:   []string{"delivery@example.com", "example@email.com", "<example@email.com>"},
+			denied:   "(.+@example.(org|com)|.+@email.com)",
+			expected: observeErr(smtpd.Error{Code: 451, Message: "Denied recipient address"}),
+		},
+		{
 			name:   "with valid email that are not denied",
-			emails: []string{"josue@grafana.com", "goutham@grafana.com"},
+			emails: []string{"someone@anemail.com", "someone@anemail.com"},
 			denied: "(.+@example.(org|com)|.+@email.com)",
+		},
+		{
+			name:    "with valid email that are allowed",
+			emails:  []string{"someone@example.com", "someone@email.com"},
+			allowed: "(.+@example.(org|com)|.+@email.com)",
 		},
 		{
 			name:    "with valid email that complies with both the allowed and denied list",
