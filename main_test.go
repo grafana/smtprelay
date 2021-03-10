@@ -56,7 +56,7 @@ func Test_RecepientsCheck(t *testing.T) {
 			for _, e := range tt.emails {
 				if err := checker(smtpd.Peer{}, e); err != nil {
 					if err != tt.expected {
-						t.Errorf("got %d, want %d for the eamil %s", err, tt.expected, e)
+						t.Errorf("got %d, want %d for the email %s", err, tt.expected, e)
 					}
 				}
 			}
