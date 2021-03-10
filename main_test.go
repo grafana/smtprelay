@@ -24,7 +24,7 @@ func Test_RecepientsCheck(t *testing.T) {
 		expected error
 	}{
 		{
-			name:   "with emails that are denied",
+			name:   "without any list, all emails are allowed",
 			emails: []string{"delivery@example.com", "example@email.com", "<example@email.com>"},
 		},
 		{
