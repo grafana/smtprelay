@@ -100,27 +100,36 @@ func senderChecker(peer smtpd.Peer, addr string) error {
 	return observeErr(smtpd.Error{Code: 451, Message: "sender address not allowed"})
 }
 
-func recipientChecker(peer smtpd.Peer, addr string) error {
-	if *allowedRecipients == "" {
-		// allow any recipient, disable recipient check
-		return nil
-	}
+func recipientChecker(allowed, denied string) func(peer smtpd.Peer, addr string) error {
+	return func(peer smtpd.Peer, addr string) error {
+		if allowed == "" && denied == "" {
+			// allow any recipient, disable recipient check
+			return nil
+		}
 
-	re, err := regexp.Compile(*allowedRecipients)
-	if err != nil {
-		log.WithField("allow_recipients", *allowedRecipients).
-			WithField("err", err).
-			Warn("allowed_recipients invalid")
+		allowedRegexp, err := regexp.Compile(allowed)
+		if err != nil {
+			log.WithField("allow_recipients", allowed).
+				WithField("err", err).
+				Warn("allowed_recipients invalid")
+			return observeErr(smtpd.Error{Code: 451, Message: "Invalid recipient address"})
+		}
+
+		deniedRegexp, err := regexp.Compile(denied)
+		if err != nil {
+			log.WithField("denied_recipients", denied).
+				WithField("err", err).
+				Warn("denied_recipients invalid")
+			return observeErr(smtpd.Error{Code: 451, Message: "Invalid recipient address"})
+		}
+
+		if allowedRegexp.MatchString(addr) && !deniedRegexp.MatchString(addr) {
+			return nil
+		}
+
+		log.WithField("address", addr).Warn("Invalid recipient address")
 		return observeErr(smtpd.Error{Code: 451, Message: "Invalid recipient address"})
 	}
-
-	if re.MatchString(addr) {
-		return nil
-	}
-
-	log.WithField("address", addr).
-		Warn("Invalid recipient address")
-	return observeErr(smtpd.Error{Code: 451, Message: "Invalid recipient address"})
 }
 
 func authChecker(peer smtpd.Peer, username string, password string) error {
@@ -285,7 +294,7 @@ func main() {
 			HeloChecker:       heloChecker,
 			ConnectionChecker: connectionChecker,
 			SenderChecker:     senderChecker,
-			RecipientChecker:  recipientChecker,
+			RecipientChecker:  recipientChecker(*allowedRecipients, *deniedRecipients),
 			Handler:           mailHandler,
 		}
 
