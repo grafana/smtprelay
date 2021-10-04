@@ -308,9 +308,9 @@ func main() {
 			// defaults shown below for clarity
 			MaxConnections: 100,
 			MaxRecipients:  100,
-			ReadTimeout:    time.Duration(60 * time.Seconds),
-			WriteTimeout:   time.Duration(60 * time.Seconds),
-			DataTimeout:    time.Duration(5 * time.Minutes),
+			ReadTimeout:    time.Duration(60 * time.Second),
+			WriteTimeout:   time.Duration(60 * time.Second),
+			DataTimeout:    time.Duration(5 * time.Minute),
 		}
 
 		if *allowedUsers != "" {
