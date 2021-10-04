@@ -192,6 +192,8 @@ func mailHandler(peer smtpd.Peer, env smtpd.Envelope) error {
 		sender = *remoteSender
 	}
 
+	msgSizeHistogram.Observe(float64(len(env.Data)))
+
 	start := time.Now()
 	err := SendMail(
 		*remoteHost,
@@ -304,13 +306,12 @@ func main() {
 			SenderChecker:     senderChecker,
 			RecipientChecker:  recipientChecker(*allowedRecipients, *deniedRecipients),
 			Handler:           mailHandler,
-			MaxMessageSize:    51200000,
-			// defaults shown below for clarity
-			MaxConnections: 100,
-			MaxRecipients:  100,
-			ReadTimeout:    time.Duration(60 * time.Second),
-			WriteTimeout:   time.Duration(60 * time.Second),
-			DataTimeout:    time.Duration(5 * time.Minute),
+			MaxMessageSize:    *maxMessageSize,
+			MaxConnections:    *maxConnections,
+			MaxRecipients:     *maxRecipients,
+			ReadTimeout:       *readTimeout,
+			WriteTimeout:      *writeTimeout,
+			DataTimeout:       *dataTimeout,
 		}
 
 		if *allowedUsers != "" {

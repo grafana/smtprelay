@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"os"
+	"time"
 
 	"github.com/vharitonsky/iniflags"
 )
@@ -28,9 +29,15 @@ var (
 	allowedRecipients = flag.String("allowed_recipients", "", "Regular expression for valid 'to' email addresses")
 	deniedRecipients  = flag.String("denied_recipients", "", "Regular expression for email addresses for which will never deliver any emails.")
 	// set "" to allow any user (i.e disable users check)
-	allowedUsers = flag.String("allowed_users", "", "Path to file with valid users/passwords")
-	remoteHost   = flag.String("remote_host", "smtp.gmail.com:587", "Outgoing SMTP server")
-	remoteUser   = flag.String("remote_user", "", "Username for authentication on outgoing SMTP server")
+	allowedUsers   = flag.String("allowed_users", "", "Path to file with valid users/passwords")
+	remoteHost     = flag.String("remote_host", "smtp.gmail.com:587", "Outgoing SMTP server")
+	remoteUser     = flag.String("remote_user", "", "Username for authentication on outgoing SMTP server")
+	maxMessageSize = flag.Int("max_message_size", 51200000, "Max message size allowed in bytes")
+	maxConnections = flag.Int("max_connections", 100, "Max number of concurrent connections, use -1 to disable")
+	maxRecipients  = flag.Int("max_recipients", 100, "Max number of recipients on an email")
+	readTimeout    = flag.Duration("read_timeout", time.Duration(60*time.Second), "Socket timeout for read operations")
+	writeTimeout   = flag.Duration("write_timeout", time.Duration(60*time.Second), "Socket timeout for write operations")
+	dataTimeout    = flag.Duration("data_timeout", time.Duration(5*time.Minute), "Socket timeout for DATA command")
 	// REMOTE_PASS env var can also be used to set remotePass
 	remotePass   = flag.String("remote_pass", "", "Password for authentication on outgoing SMTP server")
 	remoteAuth   = flag.String("remote_auth", "plain", "Auth method on outgoing SMTP server (plain, login)")
