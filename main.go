@@ -15,6 +15,7 @@ import (
 
 	"github.com/chrj/smtpd"
 	"github.com/google/uuid"
+	"github.com/phogolabs/log"
 )
 
 func observeErr(err smtpd.Error) smtpd.Error {
@@ -296,7 +297,6 @@ func main() {
 	for i := range addresses {
 		address := addresses[i]
 
-		// TODO: expose smtpd config options (timeouts, message size, and recipients)
 		server := &smtpd.Server{
 			Hostname:          *hostName,
 			WelcomeMessage:    *welcomeMsg,
@@ -305,6 +305,13 @@ func main() {
 			SenderChecker:     senderChecker,
 			RecipientChecker:  recipientChecker(*allowedRecipients, *deniedRecipients),
 			Handler:           mailHandler,
+			MaxMessageSize:    51200000,
+			// defaults shown below for clarity
+			MaxConnections: 100,
+			MaxRecipients:  100,
+			ReadTimeout:    time.Duration(60 * time.Seconds),
+			WriteTimeout:   time.Duration(60 * time.Seconds),
+			DataTimeout:    time.Duration(5 * time.Minutes),
 		}
 
 		if *allowedUsers != "" {
