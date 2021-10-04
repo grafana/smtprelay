@@ -15,7 +15,6 @@ import (
 
 	"github.com/chrj/smtpd"
 	"github.com/google/uuid"
-	"github.com/phogolabs/log"
 )
 
 func observeErr(err smtpd.Error) smtpd.Error {
