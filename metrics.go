@@ -12,7 +12,10 @@ var (
 	requestsCounter   prometheus.Counter
 	errorsCounter     *prometheus.CounterVec
 	durationHistogram *prometheus.HistogramVec
+	msgSizeHistogram  prometheus.Histogram
 )
+
+const mb = 1024 * 1024
 
 func registerMetrics() {
 	requestsCounter = promauto.NewCounter(prometheus.CounterOpts{
@@ -32,6 +35,12 @@ func registerMetrics() {
 		Name:      "request_duration",
 		Buckets:   prometheus.DefBuckets,
 	}, []string{"error_code"})
+
+	msgSizeHistogram = promauto.NewHistogram(prometheus.HistogramOpts{
+		Namespace: "smtprelay",
+		Name:      "message_bytes",
+		Buckets:   []float64{0.05 * mb, 0.1 * mb, 0.25 * mb, 0.5 * mb, 1 * mb, 2 * mb, 5 * mb, 10 * mb, 20 * mb},
+	})
 }
 
 func handleMetrics() {
