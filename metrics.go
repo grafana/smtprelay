@@ -39,7 +39,7 @@ func registerMetrics() {
 	msgSizeHistogram = promauto.NewHistogram(prometheus.HistogramOpts{
 		Namespace: "smtprelay",
 		Name:      "message_bytes",
-		Buckets:   []float64{1 * mb, 10 * mb, 20 * mb, 30 * mb, 40 * mb, 50 * mb},
+		Buckets:   []float64{0.05 * mb, 0.1 * mb, 0.25 * mb, 0.5 * mb, 1 * mb, 2 * mb, 5 * mb, 10 * mb, 20 * mb},
 	})
 }
 
