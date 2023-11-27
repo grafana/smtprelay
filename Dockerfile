@@ -19,6 +19,10 @@ RUN make build
 
 FROM alpine:3.18 AS runtime
 
+RUN apk add --no-cache --upgrade \
+        libcrypto3>=3.1.4-r1 \
+        libssl3>=3.1.4-r1
+
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=build /go/src/github.com/grafana/smtprelay/smtprelay /usr/local/bin/smtprelay
 
