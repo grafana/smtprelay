@@ -3,7 +3,7 @@ module github.com/decke/smtprelay
 require (
 	github.com/chrj/smtpd v0.2.0
 	github.com/golang/protobuf v1.5.2 // indirect
-	github.com/google/uuid v1.2.0
+	github.com/google/uuid v1.4.0
 	github.com/kr/pretty v0.2.0 // indirect
 	github.com/prometheus/client_golang v1.9.0
 	github.com/sirupsen/logrus v1.7.0
