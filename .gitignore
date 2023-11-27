@@ -2,5 +2,3 @@ smtprelay
 smtprelay.log
 *.ini
 !smtprelay.ini
-
-
