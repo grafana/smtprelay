@@ -1,4 +1,4 @@
-FROM golang:1.16-stretch as build
+FROM golang:1.18-stretch as build
 ARG GOARCH="amd64"
 COPY . /build_dir
 WORKDIR /build_dir
