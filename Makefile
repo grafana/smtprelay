@@ -18,7 +18,10 @@ clean:
 
 .PHONY: docker
 docker: build
-	docker build -t $(DOCKER_TAG) ./
+	docker build \
+		--build-arg=GIT_REVISION=$(BUILD_COMMIT) \
+		-t $(DOCKER_TAG) \
+		.
 
 .PHONY: docker-push
 docker-push:  docker
