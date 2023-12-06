@@ -1,8 +1,12 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"crypto/tls"
+	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/smtp"
 	"net/textproto"
@@ -15,6 +19,7 @@ import (
 
 	"github.com/chrj/smtpd"
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 )
 
 func observeErr(err smtpd.Error) smtpd.Error {
@@ -153,6 +158,24 @@ func authChecker(peer smtpd.Peer, username string, password string) error {
 	return nil
 }
 
+func addLogHeaderFields(logHeaders map[string]string, log *logrus.Entry, data []byte) (*logrus.Entry, error) {
+	buf := bufio.NewReader(bytes.NewReader(data))
+	headers, err := textproto.NewReader(buf).ReadMIMEHeader()
+	if err != nil && !errors.Is(err, io.EOF) {
+		return nil, fmt.Errorf("readMIMEHeader: %w", err)
+	}
+
+	for field, hdrname := range logHeaders {
+		val := headers.Get(hdrname)
+		if val != "" {
+			// we assume a single value for the header, and get the first
+			log = log.WithField(field, val)
+		}
+	}
+
+	return log, nil
+}
+
 func mailHandler(peer smtpd.Peer, env smtpd.Envelope) error {
 	uniqueID := generateUUID()
 
@@ -161,13 +184,23 @@ func mailHandler(peer smtpd.Peer, env smtpd.Envelope) error {
 		peerIP = addr.IP.String()
 	}
 
-	// TODO: set custom logHeader fields here
-	log.WithField("from", env.Sender).
+	// parse headers from data if we need to log any of them
+	var err error
+	deliveryLog := log.WithField("from", env.Sender).
 		WithField("to", env.Recipients).
 		WithField("peer", peerIP).
 		WithField("host", remoteHost).
-		WithField("uuid", uniqueID).
-		Info("delivering mail from peer using smarthost")
+		WithField("uuid", uniqueID)
+	if len(logHeaders) > 0 {
+		deliveryLog, err = addLogHeaderFields(logHeaders, deliveryLog, env.Data)
+		if err != nil {
+			log.WithField("err", err).
+				WithField("uuid", uniqueID).
+				Warn("could not parse headers")
+		}
+	}
+
+	deliveryLog.Info("delivering mail from peer using smarthost")
 
 	var auth smtp.Auth
 	host, _, _ := net.SplitHostPort(remoteHost)
@@ -196,7 +229,7 @@ func mailHandler(peer smtpd.Peer, env smtpd.Envelope) error {
 	msgSizeHistogram.Observe(float64(len(env.Data)))
 
 	start := time.Now()
-	err := SendMail(
+	err = SendMail(
 		remoteHost,
 		auth,
 		sender,

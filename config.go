@@ -2,8 +2,8 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/vharitonsky/iniflags"
@@ -40,6 +40,8 @@ var (
 	remoteSender      string
 	versionInfo       bool
 	logLevel          string
+	logHeadersStr     string
+	logHeaders        map[string]string
 )
 
 func ConfigLoad() {
@@ -59,6 +61,8 @@ func ConfigLoad() {
 			log.Debug("no data found in REMOTE_PASS env var")
 		}
 	}
+
+	logHeaders = parseLogHeaders(logHeadersStr)
 }
 
 func registerFlags(f *flag.FlagSet) {
@@ -88,28 +92,27 @@ func registerFlags(f *flag.FlagSet) {
 	f.StringVar(&remoteSender, "remote_sender", "", "Sender email address on outgoing SMTP server")
 	f.BoolVar(&versionInfo, "version", false, "Show version information")
 	f.StringVar(&logLevel, "log_level", "debug", "Minimum log level to output")
+	f.StringVar(&logHeadersStr, "log_header", "", "Log this mail header's value (log_field=Header-Name) set multiples with spaces")
 }
 
-// StringSliceVar is a []string that implements flag.Value
-func StringSliceVar(s *[]string) flag.Value {
-	return &stringSliceVar{s}
-}
-
-type stringSliceVar struct {
-	s *[]string
-}
-
-// String implements flag.Value
-func (v stringSliceVar) String() string {
-	return fmt.Sprintf("%v", v.s)
-}
-
-// Set implements flag.Value
-func (v *stringSliceVar) Set(s string) error {
-	if v.s == nil {
-		return fmt.Errorf("underlying slice was nil")
+// parse the input into a map[string]string. It should be in the form of
+// "field1=Header-Name1 field2=Header-Name2" (key=vaue pairs, separated by
+// spaces)
+func parseLogHeaders(s string) map[string]string {
+	logHeaders := map[string]string{}
+	if s == "" {
+		return logHeaders
 	}
-	*v.s = append(*v.s, s)
 
-	return nil
+	entries := strings.Split(s, " ")
+	for _, entry := range entries {
+		field, hdr, found := strings.Cut(entry, "=")
+		if !found {
+			continue
+		}
+
+		logHeaders[field] = hdr
+	}
+
+	return logHeaders
 }
