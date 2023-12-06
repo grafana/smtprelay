@@ -12,9 +12,9 @@ var (
 	log *logrus.Entry
 )
 
-func setupLogger() {
+func setupLogger(logFile, logLevel string) {
 	logger := logrus.New()
-	writer, err := os.OpenFile(*logFile, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0644)
+	writer, err := os.OpenFile(logFile, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0644)
 	if err != nil {
 		fmt.Printf("cannot open log file: %s", err)
 		os.Exit(1)
@@ -28,11 +28,11 @@ func setupLogger() {
 
 	log = logrus.NewEntry(logger)
 
-	level, err := logrus.ParseLevel(*logLevel)
+	level, err := logrus.ParseLevel(logLevel)
 	if err != nil {
 		level = logrus.DebugLevel
 
-		log.WithField("given_level", *logLevel).
+		log.WithField("given_level", logLevel).
 			Warn("could not parse log level, defaulting to 'debug'")
 	}
 
