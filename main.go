@@ -1,8 +1,12 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"crypto/tls"
+	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/smtp"
 	"net/textproto"
@@ -15,6 +19,7 @@ import (
 
 	"github.com/chrj/smtpd"
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 )
 
 func observeErr(err smtpd.Error) smtpd.Error {
@@ -24,7 +29,7 @@ func observeErr(err smtpd.Error) smtpd.Error {
 }
 
 func connectionChecker(peer smtpd.Peer) error {
-	if *allowedSender == "" {
+	if allowedSender == "" {
 		// disable network check, and allow any peer
 		return nil
 	}
@@ -38,7 +43,7 @@ func connectionChecker(peer smtpd.Peer) error {
 		return observeErr(smtpd.Error{Code: 421, Message: "Denied - failed to parse IP"})
 	}
 
-	nets := strings.Split(*allowedNets, " ")
+	nets := strings.Split(allowedNets, " ")
 
 	for i := range nets {
 		_, allowedNet, _ := net.ParseCIDR(nets[i])
@@ -61,13 +66,13 @@ func heloChecker(peer smtpd.Peer, addr string) error {
 }
 
 func senderChecker(peer smtpd.Peer, addr string) error {
-	if *allowedSender == "" {
+	if allowedSender == "" {
 		// disable sender check, allow anyone to send mail
 		return nil
 	}
 
 	// check sender address from auth file if user is authenticated
-	if *allowedUsers != "" && peer.Username != "" {
+	if allowedUsers != "" && peer.Username != "" {
 		_, email, err := AuthFetch(peer.Username)
 		if err != nil {
 			log.WithField("sender_address", addr).
@@ -83,9 +88,9 @@ func senderChecker(peer smtpd.Peer, addr string) error {
 		}
 	}
 
-	re, err := regexp.Compile(*allowedSender)
+	re, err := regexp.Compile(allowedSender)
 	if err != nil {
-		log.WithField("allowed_sender", *allowedSender).
+		log.WithField("allowed_sender", allowedSender).
 			WithField("err", err).
 			Warn("allowed_sender invalid")
 		return observeErr(smtpd.Error{Code: 451, Message: "sender address not allowed"})
@@ -153,6 +158,24 @@ func authChecker(peer smtpd.Peer, username string, password string) error {
 	return nil
 }
 
+func addLogHeaderFields(logHeaders map[string]string, log *logrus.Entry, data []byte) (*logrus.Entry, error) {
+	buf := bufio.NewReader(bytes.NewReader(data))
+	headers, err := textproto.NewReader(buf).ReadMIMEHeader()
+	if err != nil && !errors.Is(err, io.EOF) {
+		return nil, fmt.Errorf("readMIMEHeader: %w", err)
+	}
+
+	for field, hdrname := range logHeaders {
+		val := headers.Get(hdrname)
+		if val != "" {
+			// we assume a single value for the header, and get the first
+			log = log.WithField(field, val)
+		}
+	}
+
+	return log, nil
+}
+
 func mailHandler(peer smtpd.Peer, env smtpd.Envelope) error {
 	uniqueID := generateUUID()
 
@@ -161,22 +184,33 @@ func mailHandler(peer smtpd.Peer, env smtpd.Envelope) error {
 		peerIP = addr.IP.String()
 	}
 
-	log.WithField("from", env.Sender).
+	// parse headers from data if we need to log any of them
+	var err error
+	deliveryLog := log.WithField("from", env.Sender).
 		WithField("to", env.Recipients).
 		WithField("peer", peerIP).
-		WithField("host", *remoteHost).
-		WithField("uuid", uniqueID).
-		Info("delivering mail from peer using smarthost")
+		WithField("host", remoteHost).
+		WithField("uuid", uniqueID)
+	if len(logHeaders) > 0 {
+		deliveryLog, err = addLogHeaderFields(logHeaders, deliveryLog, env.Data)
+		if err != nil {
+			log.WithField("err", err).
+				WithField("uuid", uniqueID).
+				Warn("could not parse headers")
+		}
+	}
+
+	deliveryLog.Info("delivering mail from peer using smarthost")
 
 	var auth smtp.Auth
-	host, _, _ := net.SplitHostPort(*remoteHost)
+	host, _, _ := net.SplitHostPort(remoteHost)
 
-	if *remoteUser != "" && *remotePass != "" {
-		switch *remoteAuth {
+	if remoteUser != "" && remotePass != "" {
+		switch remoteAuth {
 		case "plain":
-			auth = smtp.PlainAuth("", *remoteUser, *remotePass, host)
+			auth = smtp.PlainAuth("", remoteUser, remotePass, host)
 		case "login":
-			auth = LoginAuth(*remoteUser, *remotePass)
+			auth = LoginAuth(remoteUser, remotePass)
 		default:
 			return observeErr(smtpd.Error{Code: 530, Message: "Authentication method not supported"})
 		}
@@ -186,17 +220,17 @@ func mailHandler(peer smtpd.Peer, env smtpd.Envelope) error {
 
 	var sender string
 
-	if *remoteSender == "" {
+	if remoteSender == "" {
 		sender = env.Sender
 	} else {
-		sender = *remoteSender
+		sender = remoteSender
 	}
 
 	msgSizeHistogram.Observe(float64(len(env.Data)))
 
 	start := time.Now()
-	err := SendMail(
-		*remoteHost,
+	err = SendMail(
+		remoteHost,
 		auth,
 		sender,
 		env.Recipients,
@@ -231,7 +265,7 @@ func mailHandler(peer smtpd.Peer, env smtpd.Envelope) error {
 	durationHistogram.WithLabelValues("none").
 		Observe(time.Now().Sub(start).Seconds())
 
-	log.WithField("host", *remoteHost).
+	log.WithField("host", remoteHost).
 		WithField("uuid", uniqueID).
 		Debug("delivery successful")
 
@@ -283,7 +317,7 @@ func main() {
 		tls.TLS_RSA_WITH_AES_256_CBC_SHA,
 	}
 
-	if *versionInfo {
+	if versionInfo {
 		fmt.Printf("smtprelay/%s\n", VERSION)
 		os.Exit(0)
 	}
@@ -293,32 +327,32 @@ func main() {
 		Debug("starting smtprelay")
 
 	var listeners []net.Listener
-	addresses := strings.Split(*listen, " ")
+	addresses := strings.Split(listen, " ")
 
 	for i := range addresses {
 		address := addresses[i]
 
 		server := &smtpd.Server{
-			Hostname:          *hostName,
-			WelcomeMessage:    *welcomeMsg,
+			Hostname:          hostName,
+			WelcomeMessage:    welcomeMsg,
 			HeloChecker:       heloChecker,
 			ConnectionChecker: connectionChecker,
 			SenderChecker:     senderChecker,
-			RecipientChecker:  recipientChecker(*allowedRecipients, *deniedRecipients),
+			RecipientChecker:  recipientChecker(allowedRecipients, deniedRecipients),
 			Handler:           mailHandler,
-			MaxMessageSize:    *maxMessageSize,
-			MaxConnections:    *maxConnections,
-			MaxRecipients:     *maxRecipients,
-			ReadTimeout:       *readTimeout,
-			WriteTimeout:      *writeTimeout,
-			DataTimeout:       *dataTimeout,
+			MaxMessageSize:    maxMessageSize,
+			MaxConnections:    maxConnections,
+			MaxRecipients:     maxRecipients,
+			ReadTimeout:       readTimeout,
+			WriteTimeout:      writeTimeout,
+			DataTimeout:       dataTimeout,
 		}
 
-		if *allowedUsers != "" {
-			err := AuthLoadFile(*allowedUsers)
+		if allowedUsers != "" {
+			err := AuthLoadFile(allowedUsers)
 			if err != nil {
 				log.WithField("err", err).
-					WithField("file", *allowedUsers).
+					WithField("file", allowedUsers).
 					Fatal("cannot load allowed users file")
 			}
 
@@ -334,13 +368,13 @@ func main() {
 		} else if strings.HasPrefix(addresses[i], "starttls://") {
 			address = strings.TrimPrefix(address, "starttls://")
 
-			if *localCert == "" || *localKey == "" {
-				log.WithField("cert_file", *localCert).
-					WithField("key_file", *localKey).
+			if localCert == "" || localKey == "" {
+				log.WithField("cert_file", localCert).
+					WithField("key_file", localKey).
 					Fatal("TLS certificate/key file not defined in config")
 			}
 
-			cert, err := tls.LoadX509KeyPair(*localCert, *localKey)
+			cert, err := tls.LoadX509KeyPair(localCert, localKey)
 			if err != nil {
 				log.WithField("error", err).
 					Fatal("cannot load X509 keypair")
@@ -352,7 +386,7 @@ func main() {
 				CipherSuites:             tlsCipherSuites,
 				Certificates:             []tls.Certificate{cert},
 			}
-			server.ForceTLS = *localForceTLS
+			server.ForceTLS = localForceTLS
 
 			log.WithField("address", address).
 				Info("listening on STARTTLS address")
@@ -363,13 +397,13 @@ func main() {
 
 			address = strings.TrimPrefix(address, "tls://")
 
-			if *localCert == "" || *localKey == "" {
-				log.WithField("cert_file", *localCert).
-					WithField("key_file", *localKey).
+			if localCert == "" || localKey == "" {
+				log.WithField("cert_file", localCert).
+					WithField("key_file", localKey).
 					Fatal("TLS certificate/key file not defined in config")
 			}
 
-			cert, err := tls.LoadX509KeyPair(*localCert, *localKey)
+			cert, err := tls.LoadX509KeyPair(localCert, localKey)
 			if err != nil {
 				log.WithField("error", err).
 					Fatal("cannot load X509 keypair")

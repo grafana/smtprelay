@@ -47,7 +47,7 @@ func handleMetrics() {
 	registerMetrics()
 
 	http.Handle("/metrics", promhttp.Handler())
-	if err := http.ListenAndServe(*metricsListen, nil); err != nil {
+	if err := http.ListenAndServe(metricsListen, nil); err != nil {
 		log.WithField("err", err.Error()).
 			Fatal("cannot publish metrics")
 	}
