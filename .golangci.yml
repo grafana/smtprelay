@@ -1,0 +1,106 @@
+linters-settings:
+  govet:
+    check-shadowing: true
+    enable-all: true
+  gocyclo:
+    min-complexity: 10
+  gocritic:
+    disabled-checks:
+      - commentFormatting
+  dupl:
+    threshold: 100
+  goconst:
+    min-len: 3
+    min-occurrences: 6
+    ignore-tests: true
+  lll:
+    line-length: 140
+  nolintlint:
+    allow-unused: false # report any unused nolint directives
+    require-explanation: false # don't require an explanation for nolint directives
+    require-specific: false # don't require nolint directives to be specific about which linter is being skipped
+  errcheck:
+    exclude-functions:
+      - io/ioutil.WriteFile
+      - io/ioutil.ReadFile
+      - io.Copy
+  gocognit:
+    min-complexity: 31
+  gomoddirectives:
+    replace-allow-list: []
+  depguard:
+    rules:
+      main:
+        deny:
+          - pkg: github.com/pkg/errors
+            desc: 'use `fmt.Errorf` instead, or the stdlib `errors` package'
+
+linters:
+  disable-all: true
+  enable:
+    - asasalint
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - containedctx
+    - contextcheck
+    - depguard
+    - dupl
+    - dupword
+    - durationcheck
+    # - errcheck
+    - errname
+    # - errorlint
+    - exportloopref
+    # - gocognit
+    - goconst
+    # - gocritic
+    # - gofmt
+    - goheader
+    # - goimports
+    - gomoddirectives
+    - gomodguard
+    - goprintffuncname
+    # - gosec
+    # - govet
+    - ineffassign
+    - loggercheck
+    - makezero
+    - misspell
+    - nakedret
+    # - nestif
+    - noctx
+    - nolintlint
+    - nosprintfhostport
+    - prealloc
+    - predeclared
+    # - promlinter
+    - reassign
+    # - revive
+    - rowserrcheck
+    - sqlclosecheck
+    - tenv
+    - testableexamples
+    - thelper
+    - tparallel
+    - typecheck
+    # - unconvert
+    - unparam
+    - unused
+    - usestdlibvars
+    # these linters may need to be ignored because they can be slow
+    # - gosimple
+    # - staticcheck
+    # - stylecheck
+
+# issues:
+#   # Excluding configuration per-path, per-linter, per-text and per-source
+#   exclude-rules:
+#     - path: _test\.go
+#       linters:
+#         - govet
+#         - dupl
+
+# run:
+#   concurrency: 8
+#   timeout: 10m

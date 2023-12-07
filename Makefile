@@ -28,3 +28,7 @@ docker-push:  docker
 	docker push $(DOCKER_TAG)
 	docker tag $(DOCKER_TAG) $(DOCKER_TAG):$(BUILD_VERSION)
 	docker push $(DOCKER_TAG):$(BUILD_VERSION)
+
+.PHONY: lint
+lint:
+	@golangci-lint run --max-same-issues=0 --max-issues-per-linter=0 -v
