@@ -2,10 +2,12 @@ package main
 
 import (
 	"flag"
+	"net"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/vharitonsky/iniflags"
 )
 
@@ -22,7 +24,8 @@ var (
 	localCert         string
 	localKey          string
 	localForceTLS     bool
-	allowedNets       string
+	allowedNetsStr    string
+	allowedNets       []*net.IPNet
 	allowedSender     string
 	allowedRecipients string
 	deniedRecipients  string
@@ -44,6 +47,32 @@ var (
 	logHeaders        map[string]string
 )
 
+func setupAllowedNetworks(s string) []*net.IPNet {
+	nets := []*net.IPNet{}
+
+	for _, netstr := range splitstr(s, ' ') {
+		baseIP, allowedNet, err := net.ParseCIDR(netstr)
+		if err != nil {
+			log.WithField("netstr", netstr).
+				WithError(err).
+				Fatal("Invalid CIDR notation in allowed_nets")
+		}
+
+		// Reject any network specification where any host bits are set,
+		// meaning the address refers to a host and not a network.
+		if !allowedNet.IP.Equal(baseIP) {
+			log.WithFields(logrus.Fields{
+				"given_net":  netstr,
+				"proper_net": allowedNet,
+			}).Fatal("Invalid network in allowed_nets (host bits set)")
+		}
+
+		nets = append(nets, allowedNet)
+	}
+
+	return nets
+}
+
 func ConfigLoad() {
 	registerFlags(flag.CommandLine)
 
@@ -62,6 +91,7 @@ func ConfigLoad() {
 		}
 	}
 
+	allowedNets = setupAllowedNetworks(allowedNetsStr)
 	logHeaders = parseLogHeaders(logHeadersStr)
 }
 
@@ -74,7 +104,7 @@ func registerFlags(f *flag.FlagSet) {
 	f.StringVar(&localCert, "local_cert", "", "SSL certificate for STARTTLS/TLS")
 	f.StringVar(&localKey, "local_key", "", "SSL private key for STARTTLS/TLS")
 	f.BoolVar(&localForceTLS, "local_forcetls", false, "Force STARTTLS (needs local_cert and local_key)")
-	f.StringVar(&allowedNets, "allowed_nets", "127.0.0.1/8 ::1/128", "Networks allowed to send mails (set to \"\" to disable")
+	f.StringVar(&allowedNetsStr, "allowed_nets", "127.0.0.0/8 ::/128", "Networks allowed to send mails (set to \"\" to disable")
 	f.StringVar(&allowedSender, "allowed_sender", "", "Regular expression for valid FROM email addresses (leave empty to allow any sender)")
 	f.StringVar(&allowedRecipients, "allowed_recipients", "", "Regular expression for valid 'to' email addresses (leave empty to allow any recipient)")
 	f.StringVar(&deniedRecipients, "denied_recipients", "", "Regular expression for email addresses for which will never deliver any emails.")
