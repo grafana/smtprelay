@@ -14,8 +14,8 @@ var (
 )
 
 type AuthUser struct {
-	username string
-	passwordHash string
+	username         string
+	passwordHash     string
 	allowedAddresses []string
 }
 
@@ -48,8 +48,8 @@ func parseLine(line string) *AuthUser {
 	}
 
 	user := AuthUser{
-		username: parts[0],
-		passwordHash: parts[1],
+		username:         parts[0],
+		passwordHash:     parts[1],
 		allowedAddresses: nil,
 	}
 
@@ -62,7 +62,7 @@ func parseLine(line string) *AuthUser {
 
 func AuthFetch(username string) (*AuthUser, error) {
 	if !AuthReady() {
-		return nil, errors.New("Authentication file not specified. Call LoadFile() first")
+		return nil, errors.New("authentication file not specified. Call LoadFile() first")
 	}
 
 	file, err := os.Open(filename)
@@ -78,14 +78,14 @@ func AuthFetch(username string) (*AuthUser, error) {
 			continue
 		}
 
-		if strings.ToLower(username) != strings.ToLower(user.username) {
+		if strings.EqualFold(username, user.username) {
 			continue
 		}
 
 		return user, nil
 	}
 
-	return nil, errors.New("User not found")
+	return nil, errors.New("user not found")
 }
 
 func AuthCheckPassword(username string, secret string) error {
@@ -96,5 +96,5 @@ func AuthCheckPassword(username string, secret string) error {
 	if bcrypt.CompareHashAndPassword([]byte(user.passwordHash), []byte(secret)) == nil {
 		return nil
 	}
-	return errors.New("Password invalid")
+	return errors.New("password invalid")
 }

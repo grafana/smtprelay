@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -48,7 +49,7 @@ func connectionChecker(peer smtpd.Peer) error {
 	return observeErr(smtpd.Error{Code: 421, Message: "Denied - IP out of allowed network range"})
 }
 
-func heloChecker(peer smtpd.Peer, addr string) error {
+func heloChecker(_ smtpd.Peer, _ string) error {
 	// every SMTP request starts with a HELO
 	requestsCounter.Inc()
 
@@ -71,27 +72,35 @@ func addrAllowed(addr string, allowedAddrs []string) bool {
 
 	// Test each address from allowedUsers file
 	for _, allowedAddr := range allowedAddrs {
-		allowedAddr = strings.ToLower(allowedAddr)
+		if matchAddr(allowedAddr, addr, domain) {
+			return true
+		}
+	}
 
-		// Three cases for allowedAddr format:
-		if idx := strings.Index(allowedAddr, "@"); idx == -1 {
-			// 1. local address (no @) -- must match exactly
-			if allowedAddr == addr {
-				return true
-			}
-		} else {
-			if idx != 0 {
-				// 2. email address (user@domain.com) -- must match exactly
-				if allowedAddr == addr {
-					return true
-				}
-			} else {
-				// 3. domain (@domain.com) -- must match addr domain
-				allowedDomain := allowedAddr[idx+1:]
-				if allowedDomain == domain {
-					return true
-				}
-			}
+	return false
+}
+
+func matchAddr(allowedAddr, addr, domain string) bool {
+	allowedAddr = strings.ToLower(allowedAddr)
+
+	// Three cases for allowedAddr format:
+	idx := strings.Index(allowedAddr, "@")
+	switch {
+	case idx == -1:
+		// 1. local address (no @) -- must match exactly
+		if allowedAddr == addr {
+			return true
+		}
+	case idx != 0:
+		// 2. email address (user@domain.com) -- must match exactly
+		if allowedAddr == addr {
+			return true
+		}
+	default:
+		// 3. domain (@domain.com) -- must match addr domain
+		allowedDomain := allowedAddr[idx+1:]
+		if allowedDomain == domain {
+			return true
 		}
 	}
 
@@ -109,7 +118,7 @@ func senderChecker(peer smtpd.Peer, addr string) error {
 		user, err := AuthFetch(peer.Username)
 		if err != nil {
 			log.WithField("sender_address", addr).
-				WithField("err", err).
+				WithError(err).
 				Warn("sender address not allowed")
 			return observeErr(smtpd.Error{Code: 451, Message: "sender address not allowed"})
 		}
@@ -124,7 +133,7 @@ func senderChecker(peer smtpd.Peer, addr string) error {
 	re, err := regexp.Compile(allowedSender)
 	if err != nil {
 		log.WithField("allowed_sender", allowedSender).
-			WithField("err", err).
+			WithError(err).
 			Warn("allowed_sender invalid")
 		return observeErr(smtpd.Error{Code: 451, Message: "sender address not allowed"})
 	}
@@ -145,7 +154,7 @@ func recipientChecker(allowed, denied string) func(peer smtpd.Peer, addr string)
 			deniedRegexp, err := regexp.Compile(denied)
 			if err != nil {
 				log.WithField("denied_recipients", denied).
-					WithField("err", err).
+					WithError(err).
 					Warn("denied_recipients invalid")
 				return observeErr(smtpd.Error{Code: 451, Message: "Invalid recipient address"})
 			}
@@ -161,7 +170,7 @@ func recipientChecker(allowed, denied string) func(peer smtpd.Peer, addr string)
 			allowedRegexp, err := regexp.Compile(allowed)
 			if err != nil {
 				log.WithField("allow_recipients", allowed).
-					WithField("err", err).
+					WithError(err).
 					Warn("allowed_recipients invalid")
 				return observeErr(smtpd.Error{Code: 451, Message: "Invalid recipient address"})
 			}
@@ -179,11 +188,11 @@ func recipientChecker(allowed, denied string) func(peer smtpd.Peer, addr string)
 	}
 }
 
-func authChecker(peer smtpd.Peer, username string, password string) error {
+func authChecker(_ smtpd.Peer, username string, password string) error {
 	err := AuthCheckPassword(username, password)
 	if err != nil {
 		log.WithField("username", username).
-			WithField("err", err).
+			WithError(err).
 			Warn("auth error")
 
 		return observeErr(smtpd.Error{Code: 535, Message: "Authentication credentials invalid"})
@@ -227,7 +236,7 @@ func mailHandler(peer smtpd.Peer, env smtpd.Envelope) error {
 	if len(logHeaders) > 0 {
 		deliveryLog, err = addLogHeaderFields(logHeaders, deliveryLog, env.Data)
 		if err != nil {
-			log.WithField("err", err).
+			log.WithError(err).
 				WithField("uuid", uniqueID).
 				Warn("could not parse headers")
 		}
@@ -271,32 +280,33 @@ func mailHandler(peer smtpd.Peer, env smtpd.Envelope) error {
 	)
 
 	if err != nil {
+		err = fmt.Errorf("sendMail: %w", err)
+
 		var smtpError smtpd.Error
+		var tperr *textproto.Error
 
-		switch err.(type) {
-		case *textproto.Error:
-			err := err.(*textproto.Error)
-			smtpError = smtpd.Error{Code: err.Code, Message: err.Msg}
+		if errors.As(err, &tperr) {
+			smtpError = smtpd.Error{Code: tperr.Code, Message: tperr.Msg}
 
-			log.WithField("err_code", err.Code).
-				WithField("err_msg", err.Msg).
+			log.WithField("err_code", tperr.Code).
+				WithField("err_msg", tperr.Msg).
 				WithField("uuid", uniqueID).
 				Error("delivery failed")
-		default:
-			smtpError = smtpd.Error{Code: 554, Message: "Forwarding failed"}
+		} else {
+			smtpError = smtpd.Error{Code: 554, Message: "Forwarding failed for message ID " + uniqueID}
 
-			log.WithField("err", err).
+			log.WithError(err).
 				WithField("uuid", uniqueID).
 				Error("delivery failed")
 		}
 
 		durationHistogram.WithLabelValues(fmt.Sprintf("%v", smtpError.Code)).
-			Observe(time.Now().Sub(start).Seconds())
+			Observe(time.Since(start).Seconds())
 		return observeErr(smtpError)
 	}
 
 	durationHistogram.WithLabelValues("none").
-		Observe(time.Now().Sub(start).Seconds())
+		Observe(time.Since(start).Seconds())
 
 	log.WithField("host", remoteHost).
 		WithField("uuid", uniqueID).
@@ -309,7 +319,7 @@ func generateUUID() string {
 	uniqueID, err := uuid.NewRandom()
 
 	if err != nil {
-		log.WithField("err", err).
+		log.WithError(err).
 			Error("could not generate UUIDv4")
 
 		return ""
@@ -320,44 +330,36 @@ func generateUUID() string {
 
 func main() {
 	// load config as first thing
-	ConfigLoad()
-
-	// config is used here, call after config load
-	go handleMetrics()
-
-	// Cipher suites as defined in stock Go but without 3DES and RC4
-	// https://golang.org/src/crypto/tls/cipher_suites.go
-	var tlsCipherSuites = []uint16{
-		tls.TLS_AES_128_GCM_SHA256,
-		tls.TLS_AES_256_GCM_SHA384,
-		tls.TLS_CHACHA20_POLY1305_SHA256,
-		tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
-		tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
-		tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-		tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-		tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-		tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
-		tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
-		tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
-		tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
-		tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
-		tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
-		tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
-		tls.TLS_RSA_WITH_AES_128_GCM_SHA256, // does not provide PFS
-		tls.TLS_RSA_WITH_AES_256_GCM_SHA384, // does not provide PFS
-		tls.TLS_RSA_WITH_AES_128_CBC_SHA256,
-		tls.TLS_RSA_WITH_AES_128_CBC_SHA,
-		tls.TLS_RSA_WITH_AES_256_CBC_SHA,
+	err := ConfigLoad()
+	if err != nil {
+		log.WithError(err).
+			Fatal("error loading config")
 	}
 
 	if versionInfo {
 		fmt.Printf("smtprelay/%s\n", VERSION)
-		os.Exit(0)
+		return
 	}
 
 	// print version on start
-	log.WithField("version", VERSION).
-		Debug("starting smtprelay")
+	log.WithField("version", VERSION).Debug("starting smtprelay")
+
+	if err := run(); err != nil {
+		log.WithError(err).
+			Fatal("error running smtprelay")
+	}
+}
+
+func run() error {
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM)
+	defer stop()
+
+	// config is used here, call after config load
+	metricsSrv, err := handleMetrics(ctx, metricsListen)
+	if err != nil {
+		return fmt.Errorf("could not start metrics server: %w", err)
+	}
+	defer metricsSrv.Stop()
 
 	var listeners []net.Listener
 	addresses := strings.Split(listen, " ")
@@ -384,107 +386,109 @@ func main() {
 		if allowedUsers != "" {
 			err := AuthLoadFile(allowedUsers)
 			if err != nil {
-				log.WithField("err", err).
-					WithField("file", allowedUsers).
-					Fatal("cannot load allowed users file")
+				return fmt.Errorf("cannot load allowed users file %q: %w", allowedUsers, err)
 			}
 
 			server.Authenticator = authChecker
 		}
 
-		if strings.Index(addresses[i], "://") == -1 {
-			log.WithField("address", address).
-				Info("listening on address")
+		switch {
+		case !strings.Contains(addresses[i], "://"):
+			log.WithField("address", address).Info("listening on address")
 
 			listener := listenOnAddr(server, address)
 			listeners = append(listeners, listener)
-		} else if strings.HasPrefix(addresses[i], "starttls://") {
-			address = strings.TrimPrefix(address, "starttls://")
-
-			if localCert == "" || localKey == "" {
-				log.WithField("cert_file", localCert).
-					WithField("key_file", localKey).
-					Fatal("TLS certificate/key file not defined in config")
-			}
-
-			cert, err := tls.LoadX509KeyPair(localCert, localKey)
+		case strings.HasPrefix(addresses[i], "starttls://"):
+			tlsConfig, err := getServerTLSConfig(localCert, localKey)
 			if err != nil {
 				log.WithField("error", err).
-					Fatal("cannot load X509 keypair")
+					Fatal("error getting Server TLS config")
 			}
 
-			server.TLSConfig = &tls.Config{
-				PreferServerCipherSuites: true,
-				MinVersion:               tls.VersionTLS11,
-				CipherSuites:             tlsCipherSuites,
-				Certificates:             []tls.Certificate{cert},
-			}
+			server.TLSConfig = tlsConfig
 			server.ForceTLS = localForceTLS
 
-			log.WithField("address", address).
-				Info("listening on STARTTLS address")
+			address = strings.TrimPrefix(address, "starttls://")
+			log.WithField("address", address).Info("listening on STARTTLS address")
 
 			listener := listenOnAddr(server, address)
 			listeners = append(listeners, listener)
-		} else if strings.HasPrefix(addresses[i], "tls://") {
-
-			address = strings.TrimPrefix(address, "tls://")
-
-			if localCert == "" || localKey == "" {
-				log.WithField("cert_file", localCert).
-					WithField("key_file", localKey).
-					Fatal("TLS certificate/key file not defined in config")
-			}
-
-			cert, err := tls.LoadX509KeyPair(localCert, localKey)
+		case strings.HasPrefix(addresses[i], "tls://"):
+			tlsConfig, err := getServerTLSConfig(localCert, localKey)
 			if err != nil {
 				log.WithField("error", err).
-					Fatal("cannot load X509 keypair")
+					Fatal("error getting Server TLS config")
 			}
 
-			server.TLSConfig = &tls.Config{
-				PreferServerCipherSuites: true,
-				MinVersion:               tls.VersionTLS11,
-				CipherSuites:             tlsCipherSuites,
-				Certificates:             []tls.Certificate{cert},
-			}
+			server.TLSConfig = tlsConfig
 
-			log.WithField("address", address).
-				Info("listening on TLS address")
+			address = strings.TrimPrefix(address, "tls://")
+			log.WithField("address", address).Info("listening on TLS address")
 
 			listener := listenOnTLSAddr(server, address, server.TLSConfig)
 			listeners = append(listeners, listener)
-
-		} else {
-			log.WithField("address", address).
-				Fatal("unknown protocol in address")
+		default:
+			return fmt.Errorf("unknown protocol in address %q", address)
 		}
 	}
 
 	handleSignals(listeners)
+
+	return nil
+}
+
+func getServerTLSConfig(certpath, keypath string) (*tls.Config, error) {
+	if certpath == "" {
+		return nil, fmt.Errorf("empty local_cert")
+	}
+
+	if keypath == "" {
+		return nil, fmt.Errorf("empty local_key")
+	}
+
+	cert, err := tls.LoadX509KeyPair(certpath, keypath)
+	if err != nil {
+		return nil, fmt.Errorf("cannot load X509 keypair: %w", err)
+	}
+
+	return &tls.Config{
+		MinVersion:   tls.VersionTLS12,
+		Certificates: []tls.Certificate{cert},
+	}, nil
+}
+
+func getClientTLSConfig(serverName string) *tls.Config {
+	return &tls.Config{
+		MinVersion: tls.VersionTLS12,
+		ServerName: serverName,
+	}
 }
 
 func listenOnAddr(server *smtpd.Server, addr string) net.Listener {
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
-		log.WithField("err", err).
+		log.WithError(err).
 			WithField("address", addr).
 			Fatal("could not listen on address")
 	}
 
-	go server.Serve(listener)
+	go func() {
+		_ = server.Serve(listener)
+	}()
 	return listener
 }
 
 func listenOnTLSAddr(server *smtpd.Server, addr string, config *tls.Config) net.Listener {
 	listener, err := tls.Listen("tcp", addr, config)
 	if err != nil {
-		log.WithField("err", err).
+		log.WithError(err).
 			WithField("address", addr).
 			Fatal("could not listen on address")
 	}
 
-	go server.Serve(listener)
+	go func() {
+		_ = server.Serve(listener)
+	}()
 	return listener
 }
 
@@ -504,7 +508,7 @@ func handleSignals(servers []net.Listener) {
 
 			err := s.Close()
 			if err != nil {
-				log.WithField("err", err).
+				log.WithError(err).
 					Warn("could not close listener")
 			}
 		}

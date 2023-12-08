@@ -48,35 +48,35 @@ linters:
     - dupl
     - dupword
     - durationcheck
-    # - errcheck
+    - errcheck
     - errname
-    # - errorlint
+    - errorlint
     - exportloopref
-    # - gocognit
+    - gocognit
     - goconst
-    # - gocritic
-    # - gofmt
+    - gocritic
+    - gofmt
     - goheader
-    # - goimports
+    - goimports
     - gomoddirectives
     - gomodguard
     - goprintffuncname
-    # - gosec
-    # - govet
+    - gosec
+    - govet
     - ineffassign
     - loggercheck
     - makezero
     - misspell
     - nakedret
-    # - nestif
+    - nestif
     - noctx
     - nolintlint
     - nosprintfhostport
     - prealloc
     - predeclared
-    # - promlinter
+    - promlinter
     - reassign
-    # - revive
+    - revive
     - rowserrcheck
     - sqlclosecheck
     - tenv
@@ -84,14 +84,14 @@ linters:
     - thelper
     - tparallel
     - typecheck
-    # - unconvert
+    - unconvert
     - unparam
     - unused
     - usestdlibvars
     # these linters may need to be ignored because they can be slow
-    # - gosimple
-    # - staticcheck
-    # - stylecheck
+    - gosimple
+    - staticcheck
+    - stylecheck
 
 # issues:
 #   # Excluding configuration per-path, per-linter, per-text and per-source

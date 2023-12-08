@@ -37,16 +37,15 @@ type Client struct {
 	// keep a reference to the connection so it can be used to create a TLS
 	// connection later
 	conn net.Conn
-	// whether the Client is using TLS
-	tls        bool
-	serverName string
 	// map of supported extensions
-	ext map[string]string
-	// supported auth mechanisms
-	auth       []string
+	ext        map[string]string
+	helloError error // the error from the hello
+	serverName string
 	localName  string // the name to use in HELO/EHLO
-	didHello   bool   // whether we've said HELO/EHLO
-	helloError error  // the error from the hello
+	// supported auth mechanisms
+	auth     []string
+	tls      bool // whether the Client is using TLS
+	didHello bool // whether we've said HELO/EHLO
 }
 
 // Dial returns a new Client connected to an SMTP server at addr.
@@ -111,10 +110,11 @@ func (c *Client) Hello(localName string) error {
 func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, string, error) {
 	id, err := c.Text.Cmd(format, args...)
 	if err != nil {
-		return 0, "", err
+		return 0, "", fmt.Errorf("textproto command %q: %w", format, err)
 	}
 	c.Text.StartResponse(id)
 	defer c.Text.EndResponse(id)
+
 	code, msg, err := c.Text.ReadResponse(expectCode)
 	return code, msg, err
 }
@@ -204,9 +204,9 @@ func (c *Client) Auth(a smtp.Auth) error {
 		return err
 	}
 	encoding := base64.StdEncoding
-	mech, resp, err := a.Start(&smtp.ServerInfo{c.serverName, c.tls, c.auth})
+	mech, resp, err := a.Start(&smtp.ServerInfo{Name: c.serverName, TLS: c.tls, Auth: c.auth})
 	if err != nil {
-		c.Quit()
+		_ = c.Quit()
 		return err
 	}
 	resp64 := make([]byte, encoding.EncodedLen(len(resp)))
@@ -228,8 +228,8 @@ func (c *Client) Auth(a smtp.Auth) error {
 		}
 		if err != nil {
 			// abort the AUTH
-			c.cmd(501, "*")
-			c.Quit()
+			_, _, _ = c.cmd(501, "*")
+			_ = c.Quit()
 			break
 		}
 		if resp == nil {
@@ -248,10 +248,10 @@ func (c *Client) Auth(a smtp.Auth) error {
 // This initiates a mail transaction and is followed by one or more Rcpt calls.
 func (c *Client) Mail(from string) error {
 	if err := validateLine(from); err != nil {
-		return err
+		return fmt.Errorf("validateLine: %w", err)
 	}
 	if err := c.hello(); err != nil {
-		return err
+		return fmt.Errorf("hello: %w", err)
 	}
 	cmdStr := "MAIL FROM:<%s>"
 	if c.ext != nil {
@@ -260,7 +260,10 @@ func (c *Client) Mail(from string) error {
 		}
 	}
 	_, _, err := c.cmd(250, cmdStr, from)
-	return err
+	if err != nil {
+		return fmt.Errorf("cmd: %w", err)
+	}
+	return nil
 }
 
 // Rcpt issues a RCPT command to the server using the provided email address.
@@ -297,8 +300,6 @@ func (c *Client) Data() (io.WriteCloser, error) {
 	return &dataCloser{c, c.Text.DotWriter()}, nil
 }
 
-var testHookStartTLS func(*tls.Config) // nil, except for tests
-
 // SendMail connects to the server at addr with TLS when port 465 or
 // smtps is specified or unencrypted otherwise and switches to TLS if
 // possible, authenticates with the optional mechanism a if possible,
@@ -320,82 +321,100 @@ var testHookStartTLS func(*tls.Config) // nil, except for tests
 // attachments (see the mime/multipart package), or other mail
 // functionality. Higher-level packages exist outside of the standard
 // library.
-func SendMail(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+func SendMail(addr string, auth smtp.Auth, from string, to []string, msg []byte) error {
 	if err := validateLine(from); err != nil {
-		return err
+		return fmt.Errorf("validateLine (from): %w", err)
 	}
 	for _, recp := range to {
 		if err := validateLine(recp); err != nil {
-			return err
+			return fmt.Errorf("validateLine (to): %w", err)
 		}
 	}
-	host, port, err := net.SplitHostPort(addr)
+
+	c, err := startTLSConn(addr)
 	if err != nil {
-		return err
+		return fmt.Errorf("start TLS client connection: %w", err)
 	}
-	var c *Client
-	if port == "465" || port == "smtps" {
-		config := &tls.Config{ServerName: host}
-		conn, err := tls.Dial("tcp", addr, config)
-		if err != nil {
-			return err
-		}
-		defer conn.Close()
-		c, err = NewClient(conn, host)
-		if err != nil {
-			return err
-		}
-		if err = c.hello(); err != nil {
-			return err
-		}
-	} else {
-		c, err = Dial(addr)
-		if err != nil {
-			return err
-		}
-		defer c.Close()
-		if err = c.hello(); err != nil {
-			return err
-		}
-		if ok, _ := c.Extension("STARTTLS"); ok {
-			config := &tls.Config{ServerName: c.serverName}
-			if testHookStartTLS != nil {
-				testHookStartTLS(config)
-			}
-			if err = c.StartTLS(config); err != nil {
-				return err
-			}
-		}
-	}
-	if a != nil && c.ext != nil {
+	defer c.Close()
+
+	if auth != nil && c.ext != nil {
 		if _, ok := c.ext["AUTH"]; !ok {
 			return errors.New("smtp: server doesn't support AUTH")
 		}
-		if err = c.Auth(a); err != nil {
-			return err
+
+		if err = c.Auth(auth); err != nil {
+			return fmt.Errorf("authenticate: %w", err)
 		}
 	}
+
 	if err = c.Mail(from); err != nil {
-		return err
+		return fmt.Errorf("mail: %w", err)
 	}
+
 	for _, addr := range to {
 		if err = c.Rcpt(addr); err != nil {
-			return err
+			return fmt.Errorf("rcpt: %w", err)
 		}
 	}
+
 	w, err := c.Data()
 	if err != nil {
-		return err
+		return fmt.Errorf("data: %w", err)
 	}
+
 	_, err = w.Write(msg)
 	if err != nil {
-		return err
+		return fmt.Errorf("write: %w", err)
 	}
+
 	err = w.Close()
 	if err != nil {
-		return err
+		return fmt.Errorf("close: %w", err)
 	}
+
 	return c.Quit()
+}
+
+func startTLSConn(addr string) (*Client, error) {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return nil, fmt.Errorf("splitHostPort: %w", err)
+	}
+
+	isTLS := port == "465" || port == "smtps"
+
+	var conn net.Conn
+
+	if isTLS {
+		conn, err = tls.Dial("tcp", addr, getClientTLSConfig(host))
+		if err != nil {
+			return nil, fmt.Errorf("dial TLS: %w", err)
+		}
+	} else {
+		conn, err = net.Dial("tcp", addr)
+		if err != nil {
+			return nil, fmt.Errorf("dial: %w", err)
+		}
+	}
+
+	c, err := NewClient(conn, host)
+	if err != nil {
+		return nil, fmt.Errorf("newClient: %w", err)
+	}
+
+	if err = c.hello(); err != nil {
+		return nil, fmt.Errorf("hello: %w", err)
+	}
+
+	if !isTLS {
+		if ok, _ := c.Extension("STARTTLS"); ok {
+			if err = c.StartTLS(getClientTLSConfig(c.serverName)); err != nil {
+				return nil, fmt.Errorf("startTLS: %w", err)
+			}
+		}
+	}
+
+	return c, nil
 }
 
 // Extension reports whether an extension is support by the server.
@@ -463,7 +482,7 @@ func LoginAuth(username, password string) smtp.Auth {
 	return &loginAuth{username, password}
 }
 
-func (a *loginAuth) Start(server *smtp.ServerInfo) (string, []byte, error) {
+func (a *loginAuth) Start(_ *smtp.ServerInfo) (string, []byte, error) {
 	return "LOGIN", []byte{}, nil
 }
 
@@ -475,7 +494,7 @@ func (a *loginAuth) Next(fromServer []byte, more bool) ([]byte, error) {
 		case "Password:":
 			return []byte(a.password), nil
 		default:
-			return nil, errors.New("Unknown fromServer")
+			return nil, errors.New("unknown fromServer")
 		}
 	}
 	return nil, nil
