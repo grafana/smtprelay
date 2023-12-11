@@ -17,7 +17,7 @@ RUN go mod download -x
 COPY . ./
 RUN make build
 
-FROM alpine:3.18 AS runtime
+FROM alpine:3.19 AS runtime
 
 RUN apk add --no-cache --upgrade \
         libcrypto3>=3.1.4-r1 \
