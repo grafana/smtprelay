@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/chrj/smtpd"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,10 +17,13 @@ func init() {
 	logger := logrus.New()
 	logger.SetOutput(io.Discard)
 	log = logrus.NewEntry(logger)
-	registerMetrics()
 }
 
 func Test_RecepientsCheck(t *testing.T) {
+	registry := prometheus.NewRegistry()
+	err := registerMetrics(registry)
+	require.NoError(t, err)
+
 	tc := []struct {
 		name     string
 		allowed  string

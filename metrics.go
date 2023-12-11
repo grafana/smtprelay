@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -21,10 +20,10 @@ var (
 
 const mb = 1024 * 1024
 
-func registerMetrics() {
+func init() {
 	// TODO: rename this to add a _total suffix
 	//nolint:promlinter
-	requestsCounter = promauto.NewCounter(prometheus.CounterOpts{
+	requestsCounter = prometheus.NewCounter(prometheus.CounterOpts{
 		Namespace: "smtprelay",
 		Name:      "requests_count",
 		Help:      "count of message relay requests",
@@ -32,20 +31,20 @@ func registerMetrics() {
 
 	// TODO: rename this to add a _total suffix
 	//nolint:promlinter
-	errorsCounter = promauto.NewCounterVec(prometheus.CounterOpts{
+	errorsCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: "smtprelay",
 		Name:      "errors_count",
 		Help:      "count of unsuccessfully relayed messages",
 	}, []string{"error_code"})
 
-	durationHistogram = promauto.NewHistogramVec(prometheus.HistogramOpts{
+	durationHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Namespace: "smtprelay",
 		Name:      "request_duration",
 		Help:      "duration of message relay requests",
 		Buckets:   prometheus.DefBuckets,
 	}, []string{"error_code"})
 
-	msgSizeHistogram = promauto.NewHistogram(prometheus.HistogramOpts{
+	msgSizeHistogram = prometheus.NewHistogram(prometheus.HistogramOpts{
 		Namespace: "smtprelay",
 		Name:      "message_bytes",
 		Help:      "size of messages",
@@ -53,14 +52,37 @@ func registerMetrics() {
 	})
 }
 
-func handleMetrics(ctx context.Context, addr string) (*instrumentationServer, error) {
+func registerMetrics(registry prometheus.Registerer) error {
+	err := registry.Register(requestsCounter)
+	if err != nil {
+		return err
+	}
+	err = registry.Register(errorsCounter)
+	if err != nil {
+		return err
+	}
+	err = registry.Register(durationHistogram)
+	if err != nil {
+		return err
+	}
+	err = registry.Register(msgSizeHistogram)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func handleMetrics(ctx context.Context, addr string, registry prometheus.Registerer) (*instrumentationServer, error) {
 	// Setup listeners first, so we can fail early if the address is in use.
 	httpListener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to listen at %s: %w", addr, err)
 	}
 
-	registerMetrics()
+	if err = registerMetrics(registry); err != nil {
+		return nil, fmt.Errorf("registerMetrics: %w", err)
+	}
 
 	router := http.NewServeMux()
 	router.Handle("/metrics", promhttp.InstrumentMetricHandler(
