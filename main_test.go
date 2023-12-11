@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"testing"
 
@@ -21,10 +22,10 @@ func init() {
 func Test_RecepientsCheck(t *testing.T) {
 	tc := []struct {
 		name     string
-		emails   []string
 		allowed  string
 		denied   string
 		expected error
+		emails   []string
 	}{
 		{
 			name:   "without any list, all emails are allowed",
@@ -73,7 +74,7 @@ func Test_RecepientsCheck(t *testing.T) {
 
 			for _, e := range tt.emails {
 				if err := checker(smtpd.Peer{}, e); err != nil {
-					if err != tt.expected {
+					if !errors.Is(err, tt.expected) {
 						t.Errorf("got %d, want %d for the email %s", err, tt.expected, e)
 					}
 				}
@@ -113,8 +114,8 @@ This is a test message.
 	})
 
 	t.Run("with logHeaders", func(t *testing.T) {
-		logHeaders := map[string]string{"header1": "field1", "header2": "field2"}
-		log, err := addLogHeaderFields(logHeaders, logrus.NewEntry(logger), nil)
+		hdrs := map[string]string{"header1": "field1", "header2": "field2"}
+		log, err := addLogHeaderFields(hdrs, logrus.NewEntry(logger), nil)
 		require.NoError(t, err)
 
 		s, err := log.String()
@@ -122,8 +123,9 @@ This is a test message.
 		assert.Equal(t, "level=panic\n", s)
 	})
 
-	t.Run("with simple data, logHeaders not found", func(t *testing.T) {
-		log, err := addLogHeaderFields(logHeaders, logrus.NewEntry(logger), data)
+	t.Run("with simple data, logHeaders not present", func(t *testing.T) {
+		hdrs := map[string]string{"header1": "field1", "header2": "field2"}
+		log, err := addLogHeaderFields(hdrs, logrus.NewEntry(logger), data)
 		require.NoError(t, err)
 
 		s, err := log.String()
@@ -132,8 +134,8 @@ This is a test message.
 	})
 
 	t.Run("with simple data, logHeaders found", func(t *testing.T) {
-		logHeaders = map[string]string{"subject": "Subject", "msgid": "Message-ID"}
-		log, err := addLogHeaderFields(logHeaders, logrus.NewEntry(logger), data)
+		hdrs := map[string]string{"subject": "Subject", "msgid": "Message-ID"}
+		log, err := addLogHeaderFields(hdrs, logrus.NewEntry(logger), data)
 		require.NoError(t, err)
 
 		s, err := log.String()

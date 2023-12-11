@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"net"
 	"os"
 	"strings"
@@ -15,6 +16,7 @@ const (
 	VERSION = "1.4.0"
 )
 
+// config values
 var (
 	logFile           string
 	hostName          string
@@ -25,7 +27,6 @@ var (
 	localKey          string
 	localForceTLS     bool
 	allowedNetsStr    string
-	allowedNets       []*net.IPNet
 	allowedSender     string
 	allowedRecipients string
 	deniedRecipients  string
@@ -44,7 +45,12 @@ var (
 	versionInfo       bool
 	logLevel          string
 	logHeadersStr     string
-	logHeaders        map[string]string
+)
+
+var (
+	allowedNets []*net.IPNet
+	logHeaders  map[string]string
+	log         *logrus.Entry
 )
 
 func setupAllowedNetworks(s string) []*net.IPNet {
@@ -73,12 +79,16 @@ func setupAllowedNetworks(s string) []*net.IPNet {
 	return nets
 }
 
-func ConfigLoad() {
+func ConfigLoad() error {
 	registerFlags(flag.CommandLine)
 
 	iniflags.Parse()
 
-	setupLogger(logFile, logLevel)
+	logger, err := setupLogger(logFile, logLevel)
+	if err != nil {
+		return fmt.Errorf("setupLogger: %w", err)
+	}
+	log = logger
 
 	// if remotePass is not set, try reading it from env var
 	if remotePass == "" {
@@ -93,6 +103,8 @@ func ConfigLoad() {
 
 	allowedNets = setupAllowedNetworks(allowedNetsStr)
 	logHeaders = parseLogHeaders(logHeadersStr)
+
+	return nil
 }
 
 func registerFlags(f *flag.FlagSet) {
@@ -114,9 +126,9 @@ func registerFlags(f *flag.FlagSet) {
 	f.IntVar(&maxMessageSize, "max_message_size", 51200000, "Max message size allowed in bytes")
 	f.IntVar(&maxConnections, "max_connections", 100, "Max number of concurrent connections, use -1 to disable")
 	f.IntVar(&maxRecipients, "max_recipients", 100, "Max number of recipients on an email")
-	f.DurationVar(&readTimeout, "read_timeout", time.Duration(60*time.Second), "Socket timeout for read operations")
-	f.DurationVar(&writeTimeout, "write_timeout", time.Duration(60*time.Second), "Socket timeout for write operations")
-	f.DurationVar(&dataTimeout, "data_timeout", time.Duration(5*time.Minute), "Socket timeout for DATA command")
+	f.DurationVar(&readTimeout, "read_timeout", 60*time.Second, "Socket timeout for read operations")
+	f.DurationVar(&writeTimeout, "write_timeout", 60*time.Second, "Socket timeout for write operations")
+	f.DurationVar(&dataTimeout, "data_timeout", 5*time.Minute, "Socket timeout for DATA command")
 	f.StringVar(&remotePass, "remote_pass", "", "Password for authentication on outgoing SMTP server (set $REMOTE_PASS to use env var instead)")
 	f.StringVar(&remoteAuth, "remote_auth", "plain", "Auth method on outgoing SMTP server (plain, login)")
 	f.StringVar(&remoteSender, "remote_sender", "", "Sender email address on outgoing SMTP server")
@@ -129,9 +141,9 @@ func registerFlags(f *flag.FlagSet) {
 // "field1=Header-Name1 field2=Header-Name2" (key=vaue pairs, separated by
 // spaces)
 func parseLogHeaders(s string) map[string]string {
-	logHeaders := map[string]string{}
+	h := map[string]string{}
 	if s == "" {
-		return logHeaders
+		return h
 	}
 
 	entries := strings.Split(s, " ")
@@ -141,8 +153,8 @@ func parseLogHeaders(s string) map[string]string {
 			continue
 		}
 
-		logHeaders[field] = hdr
+		h[field] = hdr
 	}
 
-	return logHeaders
+	return h
 }
