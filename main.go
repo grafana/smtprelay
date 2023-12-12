@@ -12,9 +12,13 @@ import (
 	"syscall"
 
 	"github.com/grafana/smtprelay/internal/smtpd"
+	"github.com/grafana/smtprelay/internal/traceutil"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/version"
+	"go.opentelemetry.io/otel"
 )
+
+var tracer = otel.Tracer("github.com/grafana/smtprelay")
 
 // metrics registry - overridable for tests
 var metricsRegistry = prometheus.DefaultRegisterer
@@ -52,6 +56,13 @@ func run(ctx context.Context, cfg *config) error {
 		return fmt.Errorf("could not start metrics server: %w", err)
 	}
 	defer metricsSrv.Stop()
+
+	closer, err := traceutil.InitTraceExporter(ctx, "smtprelay")
+	if err != nil {
+		return fmt.Errorf("init trace exporter: %w", err)
+	}
+	//nolint:errcheck
+	defer closer(ctx)
 
 	addresses := strings.Split(cfg.listen, " ")
 

@@ -303,6 +303,10 @@ func (session *session) handleDATA(ctx context.Context, _ command) {
 		// Accept and deliver message
 		session.envelope.Data = data.Bytes()
 
+		// re-read to get the MIME header (if any)
+		header, _ := textproto.NewReader(bufio.NewReader(data)).ReadMIMEHeader()
+		session.envelope.Header = header
+
 		err = session.deliver(ctx)
 		if err != nil {
 			session.error(err)

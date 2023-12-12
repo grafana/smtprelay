@@ -105,6 +105,21 @@ func (e Error) Error() string { return fmt.Sprintf("%d %s", e.Code, e.Message) }
 // methods after a call to Shutdown.
 var ErrServerClosed = errors.New("smtp: Server closed")
 
+var (
+	// similar to net/http's LocalAddrContextKey
+	localAddrContextKey = &struct{}{}
+)
+
+// LocalAddrFromContext can be used in handlers to access the local address the
+// connection arrived on. If no local address is available, nil is returned.
+func LocalAddrFromContext(ctx context.Context) net.Addr {
+	if addr, ok := ctx.Value(localAddrContextKey).(net.Addr); ok {
+		return addr
+	}
+
+	return nil
+}
+
 type session struct {
 	server *Server
 
@@ -330,6 +345,8 @@ func (srv *Server) configureDefaults() {
 
 func (session *session) serve(ctx context.Context) {
 	defer session.close()
+
+	ctx = context.WithValue(ctx, localAddrContextKey, session.conn.LocalAddr())
 
 	if ctx.Err() != nil {
 		session.reject()
