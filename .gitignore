@@ -1,6 +1,7 @@
+/bin/
 smtprelay
 smtprelay.log
 *.ini
 !smtprelay.ini
 .idea
-cover.out
+*.out

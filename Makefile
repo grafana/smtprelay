@@ -1,33 +1,39 @@
+.DEFAULT_GOAL = build
 
 ROOTDIR := $(abspath $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
-DISTDIR := $(abspath $(ROOTDIR)/dist)
+BIN_DIR := $(ROOTDIR)/bin
 
 BUILD_VERSION := $(shell $(ROOTDIR)/scripts/version)
 BUILD_COMMIT := $(shell git rev-parse HEAD^{commit})
-BUILD_STAMP := $(shell date --utc --rfc-3339=seconds)
+DOCKER_TAG ?= grafana/smtprelay
 
-include config.mk
+$(BIN_DIR)/smtprelay: $(shell find . -type f -name '*.go') go.mod go.sum
+	@mkdir -p $(BIN_DIR)
+	CGO_ENABLED=0 \
+		go build \
+			-trimpath \
+			-o $@ \
+			.
 
--include local/Makefile
-
-build:
-	go build -v .
+build: $(BIN_DIR)/smtprelay
 
 clean:
-	rm smtprelay
+	@rm -rf $(BIN_DIR)
+	@rm -rf *.out
 
+.PHONY: test
 test:
-	@go test -race -coverprofile=c.out ./...
+	go test -race -coverprofile=c.out ./...
 
 .PHONY: docker
-docker: build
+docker:
 	docker build \
 		--build-arg=GIT_REVISION=$(BUILD_COMMIT) \
 		-t $(DOCKER_TAG) \
 		.
 
 .PHONY: docker-push
-docker-push:  docker
+docker-push: docker
 	docker push $(DOCKER_TAG)
 	docker tag $(DOCKER_TAG) $(DOCKER_TAG):$(BUILD_VERSION)
 	docker push $(DOCKER_TAG):$(BUILD_VERSION)
