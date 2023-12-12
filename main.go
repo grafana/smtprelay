@@ -20,6 +20,7 @@ import (
 
 	"github.com/chrj/smtpd"
 	"github.com/google/uuid"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 )
 
@@ -328,6 +329,9 @@ func generateUUID() string {
 	return uniqueID.String()
 }
 
+// metrics registry - overridable for tests
+var metricsRegistry = prometheus.DefaultRegisterer
+
 func main() {
 	// load config as first thing
 	err := ConfigLoad()
@@ -355,7 +359,7 @@ func run() error {
 	defer stop()
 
 	// config is used here, call after config load
-	metricsSrv, err := handleMetrics(ctx, metricsListen)
+	metricsSrv, err := handleMetrics(ctx, metricsListen, metricsRegistry)
 	if err != nil {
 		return fmt.Errorf("could not start metrics server: %w", err)
 	}

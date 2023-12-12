@@ -16,6 +16,9 @@ build:
 clean:
 	rm smtprelay
 
+test:
+	@go test -race -coverprofile=c.out ./...
+
 .PHONY: docker
 docker: build
 	docker build \
