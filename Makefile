@@ -5,7 +5,7 @@ BIN_DIR := $(ROOTDIR)/bin
 
 BUILD_VERSION := $(shell $(ROOTDIR)/scripts/version)
 BUILD_COMMIT := $(shell git rev-parse HEAD^{commit})
-DOCKER_TAG ?= grafana/smtprelay
+DOCKER_IMAGE ?= grafana/smtprelay
 
 $(BIN_DIR)/smtprelay: $(shell find . -type f -name '*.go') go.mod go.sum
 	@mkdir -p $(BIN_DIR)
@@ -29,14 +29,17 @@ test:
 docker:
 	docker build \
 		--build-arg=GIT_REVISION=$(BUILD_COMMIT) \
-		-t $(DOCKER_TAG) \
+		-t $(DOCKER_IMAGE) \
 		.
 
+.PHONY: docker-tag
+docker-tag: docker
+	docker tag $(DOCKER_IMAGE) $(DOCKER_IMAGE):$(BUILD_VERSION)
+
 .PHONY: docker-push
-docker-push: docker
-	docker push $(DOCKER_TAG)
-	docker tag $(DOCKER_TAG) $(DOCKER_TAG):$(BUILD_VERSION)
-	docker push $(DOCKER_TAG):$(BUILD_VERSION)
+docker-push: docker-tag
+	docker push $(DOCKER_IMAGE)
+	docker push $(DOCKER_IMAGE):$(BUILD_VERSION)
 
 .PHONY: lint
 lint:
