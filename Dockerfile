@@ -16,6 +16,8 @@ RUN go mod download -x
 
 COPY . ./
 RUN make build
+# sanity check - make sure the binary runs and is executable
+RUN bin/smtprelay --version
 
 FROM alpine:3.19 AS runtime
 

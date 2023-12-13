@@ -1,0 +1,9 @@
+/bin/
+smtprelay
+smtprelay.log
+*.ini
+!smtprelay.ini
+.idea
+*.out
+.dockerignore
+Dockerfile
