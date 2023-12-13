@@ -53,30 +53,25 @@ var (
 	log         *logrus.Entry
 )
 
-func setupAllowedNetworks(s string) []*net.IPNet {
+func setupAllowedNetworks(s string) ([]*net.IPNet, error) {
 	nets := []*net.IPNet{}
 
 	for _, netstr := range splitstr(s, ' ') {
 		baseIP, allowedNet, err := net.ParseCIDR(netstr)
 		if err != nil {
-			log.WithField("netstr", netstr).
-				WithError(err).
-				Fatal("Invalid CIDR notation in allowed_nets")
+			return nil, fmt.Errorf("parseCIDR %q: %w", netstr, err)
 		}
 
 		// Reject any network specification where any host bits are set,
 		// meaning the address refers to a host and not a network.
 		if !allowedNet.IP.Equal(baseIP) {
-			log.WithFields(logrus.Fields{
-				"given_net":  netstr,
-				"proper_net": allowedNet,
-			}).Fatal("Invalid network in allowed_nets (host bits set)")
+			return nil, fmt.Errorf("invalid network (host bits set): %q", netstr)
 		}
 
 		nets = append(nets, allowedNet)
 	}
 
-	return nets
+	return nets, nil
 }
 
 func ConfigLoad() error {
@@ -101,7 +96,11 @@ func ConfigLoad() error {
 		}
 	}
 
-	allowedNets = setupAllowedNetworks(allowedNetsStr)
+	allowedNets, err = setupAllowedNetworks(allowedNetsStr)
+	if err != nil {
+		return fmt.Errorf("setupAllowedNetworks: %w", err)
+	}
+
 	logHeaders = parseLogHeaders(logHeadersStr)
 
 	return nil
