@@ -21,6 +21,7 @@ import (
 	"github.com/chrj/smtpd"
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/common/version"
 	"github.com/sirupsen/logrus"
 )
 
@@ -332,6 +333,8 @@ func generateUUID() string {
 // metrics registry - overridable for tests
 var metricsRegistry = prometheus.DefaultRegisterer
 
+const applicationName = "smtprelay"
+
 func main() {
 	// load config as first thing
 	err := ConfigLoad()
@@ -341,12 +344,12 @@ func main() {
 	}
 
 	if versionInfo {
-		fmt.Printf("smtprelay/%s\n", VERSION)
+		fmt.Printf("%s %s\n", applicationName, version.Info())
 		return
 	}
 
 	// print version on start
-	log.WithField("version", VERSION).Debug("starting smtprelay")
+	log.WithField("version", version.Version).Debug("starting smtprelay")
 
 	if err := run(); err != nil {
 		log.WithError(err).

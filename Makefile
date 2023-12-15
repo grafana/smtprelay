@@ -1,17 +1,18 @@
 .DEFAULT_GOAL = build
 
-ROOTDIR := $(abspath $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
-BIN_DIR := $(ROOTDIR)/bin
+BIN_DIR := bin
 
-BUILD_VERSION := $(shell $(ROOTDIR)/scripts/version)
-BUILD_COMMIT := $(shell git rev-parse HEAD^{commit})
+BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
+VERSION := $(shell go run ./scripts/version.go)
+GO_LDFLAGS ?= $(shell go run ./scripts/version.go -g)
+GO_FLAGS   := -trimpath -ldflags "$(GO_LDFLAGS)"
+GIT_REVISION ?= $(shell git rev-parse --short HEAD)
 DOCKER_IMAGE ?= grafana/smtprelay
 
 $(BIN_DIR)/smtprelay: $(shell find . -type f -name '*.go') go.mod go.sum
-	@mkdir -p $(BIN_DIR)
 	CGO_ENABLED=0 \
 		go build \
-			-trimpath \
+			$(GO_FLAGS) \
 			-o $@ \
 			.
 
@@ -28,18 +29,20 @@ test:
 .PHONY: docker
 docker:
 	docker build \
-		--build-arg=GIT_REVISION=$(BUILD_COMMIT) \
+		--build-arg=VERSION=$(VERSION) \
+		--build-arg=GIT_REVISION=$(GIT_REVISION) \
+		--build-arg=GO_LDFLAGS='$(GO_LDFLAGS)' \
 		-t $(DOCKER_IMAGE) \
 		.
 
 .PHONY: docker-tag
 docker-tag: docker
-	docker tag $(DOCKER_IMAGE) $(DOCKER_IMAGE):$(BUILD_VERSION)
+	docker tag $(DOCKER_IMAGE) $(DOCKER_IMAGE):$(VERSION)
 
 .PHONY: docker-push
 docker-push: docker-tag
 	docker push $(DOCKER_IMAGE)
-	docker push $(DOCKER_IMAGE):$(BUILD_VERSION)
+	docker push $(DOCKER_IMAGE):$(VERSION)
 
 .PHONY: lint
 lint:
