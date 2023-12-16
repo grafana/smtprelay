@@ -8,6 +8,7 @@ import (
 	"net/http/pprof"
 	"time"
 
+	deltapprof "github.com/grafana/pyroscope-go/godeltaprof/http/pprof"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/version"
@@ -104,6 +105,9 @@ func handleMetrics(ctx context.Context, addr string, registry prometheus.Registe
 	router.HandleFunc("/debug/pprof/profile", pprof.Profile)
 	router.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 	router.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	router.HandleFunc("/debug/pprof/delta_heap", deltapprof.Heap)
+	router.HandleFunc("/debug/pprof/delta_block", deltapprof.Block)
+	router.HandleFunc("/debug/pprof/delta_mutex", deltapprof.Mutex)
 
 	srv := &http.Server{
 		// 5s timeout for header reads to avoid Slowloris attacks (https://thetooth.io/blog/slowloris-attack/)
