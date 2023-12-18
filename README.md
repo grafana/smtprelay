@@ -33,7 +33,7 @@ produces mail.
 - `make docker-tag` - build and push docker image
 - `make docker-push` - build, tag, and push docker image
 
-Update `DOCKER_TAG` in `Makefile` to change Docker Repo.
+Update `DOCKER_IMAGE` in `Makefile` to change Docker Repo.
 
 ## Deployment
 
