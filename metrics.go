@@ -9,6 +9,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/common/version"
 )
 
 var (
@@ -21,31 +22,31 @@ var (
 const mb = 1024 * 1024
 
 func init() {
+	ns := applicationName
+
 	// TODO: rename this to add a _total suffix
-	//nolint:promlinter
 	requestsCounter = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "smtprelay",
+		Namespace: ns,
 		Name:      "requests_count",
 		Help:      "count of message relay requests",
 	})
 
 	// TODO: rename this to add a _total suffix
-	//nolint:promlinter
 	errorsCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Namespace: "smtprelay",
+		Namespace: ns,
 		Name:      "errors_count",
 		Help:      "count of unsuccessfully relayed messages",
 	}, []string{"error_code"})
 
 	durationHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
-		Namespace: "smtprelay",
+		Namespace: ns,
 		Name:      "request_duration",
 		Help:      "duration of message relay requests",
 		Buckets:   prometheus.DefBuckets,
 	}, []string{"error_code"})
 
 	msgSizeHistogram = prometheus.NewHistogram(prometheus.HistogramOpts{
-		Namespace: "smtprelay",
+		Namespace: ns,
 		Name:      "message_bytes",
 		Help:      "size of messages",
 		Buckets:   []float64{0.05 * mb, 0.1 * mb, 0.25 * mb, 0.5 * mb, 1 * mb, 2 * mb, 5 * mb, 10 * mb, 20 * mb},
@@ -66,6 +67,11 @@ func registerMetrics(registry prometheus.Registerer) error {
 		return err
 	}
 	err = registry.Register(msgSizeHistogram)
+	if err != nil {
+		return err
+	}
+
+	err = registry.Register(version.NewCollector(applicationName))
 	if err != nil {
 		return err
 	}

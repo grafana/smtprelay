@@ -12,10 +12,6 @@ import (
 	"github.com/vharitonsky/iniflags"
 )
 
-const (
-	VERSION = "1.4.0"
-)
-
 // config values
 var (
 	logFile           string
