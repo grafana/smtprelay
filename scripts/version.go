@@ -132,6 +132,12 @@ func parseVersion(in string) (*semver.Version, error) {
 }
 
 func release(ver *semver.Version, nosign bool) error {
+	// make sure 'gh' is installed
+	_, err := runCmd("gh --version")
+	if err != nil {
+		return fmt.Errorf("make sure gh is installed, please install via https://cli.github.com/: %w", err)
+	}
+
 	// make sure this is being run from main
 	out, err := runCmd("git status -sb -u no")
 	if err != nil {
