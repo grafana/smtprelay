@@ -87,7 +87,7 @@ func sendMsg(t *testing.T, addr string, to []string, from, subject string, hdrs 
 //
 // TODO: refactor smtprelay to be more testable (allow passing in the logger and
 // metrics registry, provide a good way to shut down the server, etc...)
-func startRelay(t *testing.T, srvAddr string) (string, *os.File) {
+func startRelay(t *testing.T, srvAddr string) string {
 	t.Helper()
 
 	addr := ""
@@ -98,22 +98,12 @@ func startRelay(t *testing.T, srvAddr string) (string, *os.File) {
 	addr = l.Addr().String()
 	_ = l.Close()
 
-	tempDir := t.TempDir()
-
-	logfile, err := os.Create(tempDir + "/smtprelay.log")
-	require.NoError(t, err)
-
-	t.Cleanup(func() {
-		_ = logfile.Close()
-	})
-
 	go func() {
 		os.Args = []string{"smtprelay",
 			"-log_level", "debug",
 			"-listen", addr,
 			"-metrics_listen", "127.0.0.1:0",
 			"-remote_host", srvAddr,
-			"-logfile", logfile.Name(),
 		}
 
 		metricsRegistry = prometheus.NewRegistry()
@@ -131,13 +121,13 @@ func startRelay(t *testing.T, srvAddr string) (string, *os.File) {
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	return addr, logfile
+	return addr
 }
 
 func TestSendMail(t *testing.T) {
 	srv := startTestSMTPServer(t)
 
-	addr, _ := startRelay(t, srv.addr)
+	addr := startRelay(t, srv.addr)
 
 	err := sendMsg(t, addr, []string{"alice@example.com"},
 		"bob@example.com", "test message", textproto.MIMEHeader{}, "hello world")

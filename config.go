@@ -3,18 +3,18 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/vharitonsky/iniflags"
 )
 
 // config values
 var (
-	logFile           string
+	logFormat         string
 	hostName          string
 	welcomeMsg        string
 	listen            string
@@ -46,7 +46,6 @@ var (
 var (
 	allowedNets []*net.IPNet
 	logHeaders  map[string]string
-	log         *logrus.Entry
 )
 
 func setupAllowedNetworks(s string) ([]*net.IPNet, error) {
@@ -70,25 +69,23 @@ func setupAllowedNetworks(s string) ([]*net.IPNet, error) {
 	return nets, nil
 }
 
-func ConfigLoad() error {
+func ConfigLoad() (err error) {
 	registerFlags(flag.CommandLine)
 
 	iniflags.Parse()
 
-	logger, err := setupLogger(logFile, logLevel)
-	if err != nil {
-		return fmt.Errorf("setupLogger: %w", err)
-	}
-	log = logger
+	setupLogger(logFormat, logLevel)
+
+	logger := slog.Default().With(slog.String("component", "config"))
 
 	// if remotePass is not set, try reading it from env var
 	if remotePass == "" {
-		log.Debug("remote_pass not set, trying REMOTE_PASS env var")
+		logger.Debug("remote_pass not set, trying REMOTE_PASS env var")
 		remotePass = os.Getenv("REMOTE_PASS")
 		if remotePass != "" {
-			log.Debug("found data in REMOTE_PASS env var")
+			logger.Debug("found data in REMOTE_PASS env var")
 		} else {
-			log.Debug("no data found in REMOTE_PASS env var")
+			logger.Debug("no data found in REMOTE_PASS env var")
 		}
 	}
 
@@ -103,7 +100,7 @@ func ConfigLoad() error {
 }
 
 func registerFlags(f *flag.FlagSet) {
-	f.StringVar(&logFile, "logfile", "/dev/stdout", "Path to logfile")
+	f.StringVar(&logFormat, "log_format", "json", "Log format - json or logfmt")
 	f.StringVar(&hostName, "hostname", "localhost.localdomain", "Server hostname")
 	f.StringVar(&welcomeMsg, "welcome_msg", "", "Welcome message for SMTP session")
 	f.StringVar(&listen, "listen", "127.0.0.1:25 [::1]:25", "Address and port to listen for incoming SMTP")

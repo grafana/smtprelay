@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -82,6 +83,8 @@ func registerMetrics(registry prometheus.Registerer) error {
 }
 
 func handleMetrics(ctx context.Context, addr string, registry prometheus.Registerer) (*instrumentationServer, error) {
+	log := slog.Default().With(slog.String("component", "metrics"))
+
 	// Setup listeners first, so we can fail early if the address is in use.
 	httpListener, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -119,11 +122,11 @@ func handleMetrics(ctx context.Context, addr string, registry prometheus.Registe
 	go func() {
 		err := srv.Serve(httpListener)
 		if err != nil && err != http.ErrServerClosed {
-			log.WithError(err).Error("instrumentation server terminated with error")
+			log.Error("instrumentation server terminated with error", slog.Any("error", err))
 		}
 	}()
 
-	log.WithField("addr", addr).Info("instrumentation server listening")
+	log.Info("instrumentation server listening", slog.String("addr", addr))
 
 	return &instrumentationServer{srv: srv}, nil
 }

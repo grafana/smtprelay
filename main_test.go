@@ -3,21 +3,15 @@ package main
 import (
 	"bytes"
 	"errors"
-	"io"
+	"log/slog"
+	"strings"
 	"testing"
 
 	"github.com/chrj/smtpd"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func init() {
-	logger := logrus.New()
-	logger.SetOutput(io.Discard)
-	log = logrus.NewEntry(logger)
-}
 
 func Test_RecepientsCheck(t *testing.T) {
 	registry := prometheus.NewRegistry()
@@ -89,13 +83,17 @@ func Test_RecepientsCheck(t *testing.T) {
 
 func TestAddLogHeaderFields(t *testing.T) {
 	out := &bytes.Buffer{}
-	logger := logrus.New()
-	logger.SetOutput(out)
-	logger.SetFormatter(&logrus.TextFormatter{
-		DisableTimestamp: true,
-		DisableSorting:   false,
-	})
-	logger.SetLevel(logrus.InfoLevel)
+	logger := slog.New(slog.NewTextHandler(out, &slog.HandlerOptions{
+		// remove time, level, and msg for simpler testing
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			switch a.Key {
+			case "time", "level", "msg":
+				return slog.Attr{}
+			}
+
+			return a
+		},
+	}))
 
 	data := []byte(`Subject: test
 Message-ID: 9a7f8b9c-6d1d-4b9a-8c0a-9e4b9c6d1d4b
@@ -109,42 +107,55 @@ This is a test message.
 `)
 
 	t.Run("no logHeaders", func(t *testing.T) {
-		log, err := addLogHeaderFields(nil, logrus.NewEntry(logger), nil)
+		log, err := addLogHeaderFields(nil, logger, nil)
 		require.NoError(t, err)
 
-		s, err := log.String()
-		require.NoError(t, err)
-		assert.Equal(t, "level=panic\n", s)
+		out.Reset()
+
+		log.Info("")
+		assert.Empty(t, strings.TrimSpace(out.String()))
 	})
 
 	t.Run("with logHeaders", func(t *testing.T) {
 		hdrs := map[string]string{"header1": "field1", "header2": "field2"}
-		log, err := addLogHeaderFields(hdrs, logrus.NewEntry(logger), nil)
+		log, err := addLogHeaderFields(hdrs, logger, nil)
 		require.NoError(t, err)
 
-		s, err := log.String()
-		require.NoError(t, err)
-		assert.Equal(t, "level=panic\n", s)
+		out.Reset()
+
+		log.Info("")
+		assert.Empty(t, strings.TrimSpace(out.String()))
 	})
 
 	t.Run("with simple data, logHeaders not present", func(t *testing.T) {
 		hdrs := map[string]string{"header1": "field1", "header2": "field2"}
-		log, err := addLogHeaderFields(hdrs, logrus.NewEntry(logger), data)
+		log, err := addLogHeaderFields(hdrs, logger, data)
 		require.NoError(t, err)
 
-		s, err := log.String()
-		require.NoError(t, err)
-		assert.Equal(t, "level=panic\n", s)
+		out.Reset()
+
+		log.Info("")
+		assert.Empty(t, strings.TrimSpace(out.String()))
 	})
 
 	t.Run("with simple data, logHeaders found", func(t *testing.T) {
 		hdrs := map[string]string{"subject": "Subject", "msgid": "Message-ID"}
-		log, err := addLogHeaderFields(hdrs, logrus.NewEntry(logger), data)
+		log, err := addLogHeaderFields(hdrs, logger, data)
 		require.NoError(t, err)
 
-		s, err := log.String()
-		require.NoError(t, err)
-		assert.Equal(t, "level=panic msgid=9a7f8b9c-6d1d-4b9a-8c0a-9e4b9c6d1d4b subject=test\n", s)
+		out.Reset()
+
+		log.Info("")
+
+		// we can't do a straight string compare because the order of the fields
+		// will change
+		pairs := strings.Split(
+			strings.TrimSpace(out.String()),
+			" ",
+		)
+		assert.Equal(t, 2, len(pairs))
+		assert.Contains(t, pairs, "subject=test")
+		assert.Contains(t, pairs, "msgid=9a7f8b9c-6d1d-4b9a-8c0a-9e4b9c6d1d4b")
 	})
 }
 

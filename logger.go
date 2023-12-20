@@ -1,38 +1,35 @@
 package main
 
 import (
-	"fmt"
+	"log/slog"
 	"os"
-	"time"
-
-	"github.com/sirupsen/logrus"
 )
 
-func setupLogger(logFile, logLevel string) (*logrus.Entry, error) {
-	writer, err := os.OpenFile(logFile, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0o644)
-	if err != nil {
-		return nil, fmt.Errorf("cannot open log file %q: %w", logFile, err)
+func setupLogger(format, level string) {
+	lvl := slog.LevelDebug
+	switch level {
+	case "debug":
+		lvl = slog.LevelDebug
+	case "info":
+		lvl = slog.LevelInfo
+	case "warn":
+		lvl = slog.LevelWarn
+	case "error":
+		lvl = slog.LevelError
 	}
 
-	logger := logrus.New()
-
-	logger.SetOutput(writer)
-	logger.SetFormatter(&logrus.JSONFormatter{
-		TimestampFormat:   time.RFC3339Nano,
-		DisableHTMLEscape: true,
-	})
-
-	logEntry := logrus.NewEntry(logger)
-
-	level, err := logrus.ParseLevel(logLevel)
-	if err != nil {
-		level = logrus.DebugLevel
-
-		logEntry.WithField("given_level", logLevel).
-			Warn("could not parse log level, defaulting to 'debug'")
+	opts := &slog.HandlerOptions{
+		Level:     lvl,
+		AddSource: true,
 	}
 
-	logger.SetLevel(level)
+	var handler slog.Handler
+	switch format {
+	case "logfmt":
+		handler = slog.NewTextHandler(os.Stderr, opts)
+	default:
+		handler = slog.NewJSONHandler(os.Stderr, opts)
+	}
 
-	return logEntry, nil
+	slog.SetDefault(slog.New(handler))
 }

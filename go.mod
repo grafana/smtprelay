@@ -9,7 +9,6 @@ require (
 	github.com/grafana/pyroscope-go/godeltaprof v0.1.6
 	github.com/prometheus/client_golang v1.17.0
 	github.com/prometheus/common v0.45.0
-	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.8.4
 	github.com/vharitonsky/iniflags v0.0.0-20180513140207-a33cd0b5f3de
 	golang.org/x/crypto v0.17.0

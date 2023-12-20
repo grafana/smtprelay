@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/smtp"
 	"net/textproto"
@@ -22,7 +23,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/version"
-	"github.com/sirupsen/logrus"
 )
 
 func observeErr(err smtpd.Error) smtpd.Error {
@@ -46,8 +46,8 @@ func connectionChecker(peer smtpd.Peer) error {
 		}
 	}
 
-	log.WithField("ip", peerIP).
-		Warn("IP out of allowed network range")
+	slog.Default().Warn("IP out of allowed network range", slog.String("ip", peerIP.String()))
+
 	return observeErr(smtpd.Error{Code: 421, Message: "Denied - IP out of allowed network range"})
 }
 
@@ -115,28 +115,26 @@ func senderChecker(peer smtpd.Peer, addr string) error {
 		return nil
 	}
 
+	log := slog.Default().With(slog.String("sender_address", addr))
+
 	// check sender address from auth file if user is authenticated
 	if allowedUsers != "" && peer.Username != "" {
 		user, err := AuthFetch(peer.Username)
 		if err != nil {
-			log.WithField("sender_address", addr).
-				WithError(err).
-				Warn("sender address not allowed")
+			log.Warn("sender address not allowed", slog.Any("error", err))
 			return observeErr(smtpd.Error{Code: 451, Message: "sender address not allowed"})
 		}
 
 		if !addrAllowed(addr, user.allowedAddresses) {
-			log.WithField("sender_address", addr).
-				Warn("sender address not allowed")
+			log.Warn("sender address not allowed")
 			return observeErr(smtpd.Error{Code: 451, Message: "sender address not allowed"})
 		}
 	}
 
+	// TODO: precompile this regexp and reject it at config time
 	re, err := regexp.Compile(allowedSender)
 	if err != nil {
-		log.WithField("allowed_sender", allowedSender).
-			WithError(err).
-			Warn("allowed_sender invalid")
+		log.Warn("allowed_sender invalid", slog.Any("error", err), slog.String("allowed_sender", allowedSender))
 		return observeErr(smtpd.Error{Code: 451, Message: "sender address not allowed"})
 	}
 
@@ -144,25 +142,26 @@ func senderChecker(peer smtpd.Peer, addr string) error {
 		return nil
 	}
 
-	log.WithField("sender_address", addr).
-		Warn("sender address not allowed")
+	log.Warn("sender address not allowed")
+
 	return observeErr(smtpd.Error{Code: 451, Message: "sender address not allowed"})
 }
 
 func recipientChecker(allowed, denied string) func(peer smtpd.Peer, addr string) error {
+	log := slog.Default().With(slog.String("component", "recipient_checker"))
+
 	return func(peer smtpd.Peer, addr string) error {
 		// First, we check the deny list as that one takes precedence.
 		if denied != "" {
 			deniedRegexp, err := regexp.Compile(denied)
 			if err != nil {
-				log.WithField("denied_recipients", denied).
-					WithError(err).
-					Warn("denied_recipients invalid")
+				log.Warn("denied_recipients invalid", slog.String("denied_recipients", denied), slog.Any("error", err))
+
 				return observeErr(smtpd.Error{Code: 451, Message: "Invalid recipient address"})
 			}
 
 			if deniedRegexp.MatchString(addr) {
-				log.WithField("address", addr).Warn("receipt address is part of the deny list")
+				log.Warn("receipt address is part of the deny list", slog.String("address", addr))
 				return observeErr(smtpd.Error{Code: 451, Message: "Denied recipient address"})
 			}
 		}
@@ -171,9 +170,7 @@ func recipientChecker(allowed, denied string) func(peer smtpd.Peer, addr string)
 		if allowed != "" {
 			allowedRegexp, err := regexp.Compile(allowed)
 			if err != nil {
-				log.WithField("allow_recipients", allowed).
-					WithError(err).
-					Warn("allowed_recipients invalid")
+				log.Warn("allowed_recipients invalid", slog.String("allowed_recipients", allowed), slog.Any("error", err))
 				return observeErr(smtpd.Error{Code: 451, Message: "Invalid recipient address"})
 			}
 
@@ -181,7 +178,7 @@ func recipientChecker(allowed, denied string) func(peer smtpd.Peer, addr string)
 				return nil
 			}
 
-			log.WithField("address", addr).Warn("Invalid recipient address")
+			log.Warn("Invalid recipient address", slog.String("address", addr))
 			return observeErr(smtpd.Error{Code: 451, Message: "Invalid recipient address"})
 		}
 
@@ -193,16 +190,15 @@ func recipientChecker(allowed, denied string) func(peer smtpd.Peer, addr string)
 func authChecker(_ smtpd.Peer, username string, password string) error {
 	err := AuthCheckPassword(username, password)
 	if err != nil {
-		log.WithField("username", username).
-			WithError(err).
-			Warn("auth error")
+		slog.Default().Warn("auth error", slog.String("component", "auth_checker"),
+			slog.String("username", username), slog.Any("error", err))
 
 		return observeErr(smtpd.Error{Code: 535, Message: "Authentication credentials invalid"})
 	}
 	return nil
 }
 
-func addLogHeaderFields(logHeaders map[string]string, log *logrus.Entry, data []byte) (*logrus.Entry, error) {
+func addLogHeaderFields(logHeaders map[string]string, log *slog.Logger, data []byte) (*slog.Logger, error) {
 	buf := bufio.NewReader(bytes.NewReader(data))
 	headers, err := textproto.NewReader(buf).ReadMIMEHeader()
 	if err != nil && !errors.Is(err, io.EOF) {
@@ -213,7 +209,7 @@ func addLogHeaderFields(logHeaders map[string]string, log *logrus.Entry, data []
 		val := headers.Get(hdrname)
 		if val != "" {
 			// we assume a single value for the header, and get the first
-			log = log.WithField(field, val)
+			log = log.With(slog.String(field, val))
 		}
 	}
 
@@ -228,19 +224,23 @@ func mailHandler(peer smtpd.Peer, env smtpd.Envelope) error {
 		peerIP = addr.IP.String()
 	}
 
+	logger := slog.Default().With(
+		slog.String("component", "mail_handler"),
+		slog.String("uuid", uniqueID),
+	)
+
 	// parse headers from data if we need to log any of them
 	var err error
-	deliveryLog := log.WithField("from", env.Sender).
-		WithField("to", env.Recipients).
-		WithField("peer", peerIP).
-		WithField("host", remoteHost).
-		WithField("uuid", uniqueID)
+	deliveryLog := logger.With(
+		slog.String("from", env.Sender),
+		slog.Any("to", env.Recipients),
+		slog.String("peer", peerIP),
+		slog.String("host", remoteHost),
+	)
 	if len(logHeaders) > 0 {
 		deliveryLog, err = addLogHeaderFields(logHeaders, deliveryLog, env.Data)
 		if err != nil {
-			log.WithError(err).
-				WithField("uuid", uniqueID).
-				Warn("could not parse headers")
+			logger.Warn("could not parse headers", slog.Any("error", err))
 		}
 	}
 
@@ -290,16 +290,12 @@ func mailHandler(peer smtpd.Peer, env smtpd.Envelope) error {
 		if errors.As(err, &tperr) {
 			smtpError = smtpd.Error{Code: tperr.Code, Message: tperr.Msg}
 
-			log.WithField("err_code", tperr.Code).
-				WithField("err_msg", tperr.Msg).
-				WithField("uuid", uniqueID).
-				Error("delivery failed")
+			logger.Error("delivery failed",
+				slog.Int("err_code", tperr.Code), slog.String("err_msg", tperr.Msg))
 		} else {
 			smtpError = smtpd.Error{Code: 554, Message: "Forwarding failed for message ID " + uniqueID}
 
-			log.WithError(err).
-				WithField("uuid", uniqueID).
-				Error("delivery failed")
+			logger.Error("delivery failed", slog.Any("error", err))
 		}
 
 		durationHistogram.WithLabelValues(fmt.Sprintf("%v", smtpError.Code)).
@@ -310,19 +306,15 @@ func mailHandler(peer smtpd.Peer, env smtpd.Envelope) error {
 	durationHistogram.WithLabelValues("none").
 		Observe(time.Since(start).Seconds())
 
-	log.WithField("host", remoteHost).
-		WithField("uuid", uniqueID).
-		Debug("delivery successful")
+	logger.Debug("delivery successful", slog.String("host", remoteHost))
 
 	return nil
 }
 
 func generateUUID() string {
 	uniqueID, err := uuid.NewRandom()
-
 	if err != nil {
-		log.WithError(err).
-			Error("could not generate UUIDv4")
+		slog.Default().Error("could not generate UUIDv4", slog.Any("error", err))
 
 		return ""
 	}
@@ -339,8 +331,8 @@ func main() {
 	// load config as first thing
 	err := ConfigLoad()
 	if err != nil {
-		log.WithError(err).
-			Fatal("error loading config")
+		slog.Default().Error("error loading config", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	if versionInfo {
@@ -348,12 +340,14 @@ func main() {
 		return
 	}
 
+	logger := slog.Default()
+
 	// print version on start
-	log.WithField("version", version.Version).Debug("starting smtprelay")
+	logger.Debug("config loaded", slog.String("version", version.Version))
 
 	if err := run(); err != nil {
-		log.WithError(err).
-			Fatal("error running smtprelay")
+		logger.Error("error running smtprelay", slog.Any("error", err))
+		os.Exit(1)
 	}
 }
 
@@ -367,6 +361,8 @@ func run() error {
 		return fmt.Errorf("could not start metrics server: %w", err)
 	}
 	defer metricsSrv.Stop()
+
+	logger := slog.Default()
 
 	var listeners []net.Listener
 	addresses := strings.Split(listen, " ")
@@ -401,38 +397,49 @@ func run() error {
 
 		switch {
 		case !strings.Contains(addresses[i], "://"):
-			log.WithField("address", address).Info("listening on address")
+			logger.Info("listening on address", slog.String("address", address))
 
-			listener := listenOnAddr(server, address)
+			listener, err := listenOnAddr(server, address)
+			if err != nil {
+				return fmt.Errorf("error listening on address %q: %w", address, err)
+			}
+
 			listeners = append(listeners, listener)
 		case strings.HasPrefix(addresses[i], "starttls://"):
 			tlsConfig, err := getServerTLSConfig(localCert, localKey)
 			if err != nil {
-				log.WithField("error", err).
-					Fatal("error getting Server TLS config")
+				return fmt.Errorf("error getting Server TLS config: %w", err)
 			}
 
 			server.TLSConfig = tlsConfig
 			server.ForceTLS = localForceTLS
 
 			address = strings.TrimPrefix(address, "starttls://")
-			log.WithField("address", address).Info("listening on STARTTLS address")
+			logger.Info("listening on STARTTLS address", slog.String("address", address))
 
-			listener := listenOnAddr(server, address)
+			listener, err := listenOnAddr(server, address)
+			if err != nil {
+				return fmt.Errorf("error listening on address %q: %w", address, err)
+			}
+
 			listeners = append(listeners, listener)
 		case strings.HasPrefix(addresses[i], "tls://"):
 			tlsConfig, err := getServerTLSConfig(localCert, localKey)
 			if err != nil {
-				log.WithField("error", err).
-					Fatal("error getting Server TLS config")
+				return fmt.Errorf("error getting Server TLS config: %w", err)
 			}
 
 			server.TLSConfig = tlsConfig
 
 			address = strings.TrimPrefix(address, "tls://")
-			log.WithField("address", address).Info("listening on TLS address")
 
-			listener := listenOnTLSAddr(server, address, server.TLSConfig)
+			logger.Info("listening on TLS address", slog.String("address", address))
+
+			listener, err := listenOnTLSAddr(server, address, server.TLSConfig)
+			if err != nil {
+				return fmt.Errorf("error listening on address %q: %w", address, err)
+			}
+
 			listeners = append(listeners, listener)
 		default:
 			return fmt.Errorf("unknown protocol in address %q", address)
@@ -471,32 +478,28 @@ func getClientTLSConfig(serverName string) *tls.Config {
 	}
 }
 
-func listenOnAddr(server *smtpd.Server, addr string) net.Listener {
+func listenOnAddr(server *smtpd.Server, addr string) (net.Listener, error) {
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
-		log.WithError(err).
-			WithField("address", addr).
-			Fatal("could not listen on address")
+		return nil, fmt.Errorf("could not listen on address %q: %w", addr, err)
 	}
 
 	go func() {
 		_ = server.Serve(listener)
 	}()
-	return listener
+	return listener, nil
 }
 
-func listenOnTLSAddr(server *smtpd.Server, addr string, config *tls.Config) net.Listener {
+func listenOnTLSAddr(server *smtpd.Server, addr string, config *tls.Config) (net.Listener, error) {
 	listener, err := tls.Listen("tcp", addr, config)
 	if err != nil {
-		log.WithError(err).
-			WithField("address", addr).
-			Fatal("could not listen on address")
+		return nil, fmt.Errorf("could not listen on address %q: %w", addr, err)
 	}
 
 	go func() {
 		_ = server.Serve(listener)
 	}()
-	return listener
+	return listener, nil
 }
 
 func handleSignals(servers []net.Listener) {
@@ -508,15 +511,15 @@ func handleSignals(servers []net.Listener) {
 	go func() {
 		sig := <-sigs
 
+		logger := slog.Default().With(slog.String("component", "signal_handler"))
+
 		for _, s := range servers {
-			log.WithField("signal", sig).
-				WithField("addr", s.Addr().String()).
-				Warn("closing listener in response to received signal")
+			logger.Warn("closing listener in response to received signal",
+				slog.String("signal", sig.String()), slog.String("addr", s.Addr().String()))
 
 			err := s.Close()
 			if err != nil {
-				log.WithError(err).
-					Warn("could not close listener")
+				logger.Warn("could not close listener", slog.Any("error", err))
 			}
 		}
 
@@ -524,5 +527,4 @@ func handleSignals(servers []net.Listener) {
 	}()
 
 	<-done
-	os.Exit(0)
 }
