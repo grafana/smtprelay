@@ -498,3 +498,10 @@ func (a *loginAuth) Next(fromServer []byte, more bool) ([]byte, error) {
 	}
 	return nil, nil
 }
+
+func getClientTLSConfig(serverName string) *tls.Config {
+	return &tls.Config{
+		MinVersion: tls.VersionTLS12,
+		ServerName: serverName,
+	}
+}
