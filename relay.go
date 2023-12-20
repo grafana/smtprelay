@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -68,6 +69,32 @@ func newRelay(logger *slog.Logger, cfg *config) (*relay, error) {
 
 func (r *relay) serve(ln net.Listener) error {
 	return r.server.Serve(ln)
+}
+
+func (r *relay) shutdown(ctx context.Context) error {
+	// context propagation isn't yet implemented in smtpd, so let's build in
+	// a timeout here
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+
+	// shutdown without a wait - we'll wait asynchronously after
+	err := r.server.Shutdown(false)
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		// wait for the server to shut down, then cancel the context
+		_ = r.server.Wait()
+
+		if ctx.Err() == nil {
+			cancel()
+		}
+	}()
+
+	<-ctx.Done()
+
+	return nil
 }
 
 func (r *relay) listen(address string) (net.Listener, error) {

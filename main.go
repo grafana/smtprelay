@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/grafana/smtprelay/internal/smtpd"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/version"
 )
@@ -56,58 +58,49 @@ func run(cfg *config) error {
 	logger := slog.Default()
 
 	addresses := strings.Split(cfg.listen, " ")
-	listeners := make([]net.Listener, len(addresses))
 
 	for i := range addresses {
 		address := addresses[i]
 
-		relay, err := newRelay(logger, cfg)
+		var relay *relay
+		relay, err = newRelay(logger, cfg)
 		if err != nil {
 			return fmt.Errorf("error creating relay: %w", err)
 		}
 
-		listener, err := relay.listen(address)
+		var listener net.Listener
+		listener, err = relay.listen(address)
 		if err != nil {
 			return fmt.Errorf("error listening on address %q: %w", address, err)
 		}
 
-		logger.Info("listening on address", slog.String("addrress", address))
+		logger.Info("listening on address", slog.String("address", address))
+
+		defer func(ctx context.Context) {
+			logger.Warn("closing listener", slog.String("address", address))
+
+			_ = relay.shutdown(ctx)
+		}(ctx)
 
 		go func() {
-			_ = relay.serve(listener)
-		}()
+			err = relay.serve(listener)
+			if err != nil && !errors.Is(err, smtpd.ErrServerClosed) {
+				err = fmt.Errorf("relay shutdown with an error: %w", err)
+			}
 
-		listeners[i] = listener
+			// cancel the context so we can exit
+			stop()
+		}()
 	}
 
-	handleSignals(listeners)
+	// Now wait for the context to be cancelled through a signal or other cause
+	<-ctx.Done()
 
-	return nil
-}
+	if err == nil {
+		// if we got to this point without err being set, it's probably due to
+		// a signal being received
+		err = fmt.Errorf("exiting: %w", ctx.Err())
+	}
 
-func handleSignals(servers []net.Listener) {
-	sigs := make(chan os.Signal, 1)
-	done := make(chan bool, 1)
-
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-
-	go func() {
-		sig := <-sigs
-
-		logger := slog.Default().With(slog.String("component", "signal_handler"))
-
-		for _, s := range servers {
-			logger.Warn("closing listener in response to received signal",
-				slog.String("signal", sig.String()), slog.String("addr", s.Addr().String()))
-
-			err := s.Close()
-			if err != nil {
-				logger.Warn("could not close listener", slog.Any("error", err))
-			}
-		}
-
-		done <- true
-	}()
-
-	<-done
+	return err
 }
