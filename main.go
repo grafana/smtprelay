@@ -31,24 +31,26 @@ func observeErr(err smtpd.Error) smtpd.Error {
 	return err
 }
 
-func connectionChecker(peer smtpd.Peer) error {
-	// This can't panic because we only have TCP listeners
-	peerIP := peer.Addr.(*net.TCPAddr).IP
+func connectionChecker(allowedNets []*net.IPNet) func(peer smtpd.Peer) error {
+	return func(peer smtpd.Peer) error {
+		// This can't panic because we only have TCP listeners
+		peerIP := peer.Addr.(*net.TCPAddr).IP
 
-	if len(allowedNets) == 0 {
-		// Special case: empty string means allow everything
-		return nil
-	}
-
-	for _, allowedNet := range allowedNets {
-		if allowedNet.Contains(peerIP) {
+		if len(allowedNets) == 0 {
+			// Special case: empty string means allow everything
 			return nil
 		}
+
+		for _, allowedNet := range allowedNets {
+			if allowedNet.Contains(peerIP) {
+				return nil
+			}
+		}
+
+		slog.Default().Warn("IP out of allowed network range", slog.String("ip", peerIP.String()))
+
+		return observeErr(smtpd.Error{Code: 421, Message: "Denied - IP out of allowed network range"})
 	}
-
-	slog.Default().Warn("IP out of allowed network range", slog.String("ip", peerIP.String()))
-
-	return observeErr(smtpd.Error{Code: 421, Message: "Denied - IP out of allowed network range"})
 }
 
 func heloChecker(_ smtpd.Peer, _ string) error {
@@ -109,42 +111,44 @@ func matchAddr(allowedAddr, addr, domain string) bool {
 	return false
 }
 
-func senderChecker(peer smtpd.Peer, addr string) error {
-	if allowedSender == "" {
-		// disable sender check, allow anyone to send mail
-		return nil
-	}
+func senderChecker(allowedSender, allowedUsers string) func(peer smtpd.Peer, addr string) error {
+	return func(peer smtpd.Peer, addr string) error {
+		if allowedSender == "" {
+			// disable sender check, allow anyone to send mail
+			return nil
+		}
 
-	log := slog.Default().With(slog.String("sender_address", addr))
+		log := slog.Default().With(slog.String("sender_address", addr))
 
-	// check sender address from auth file if user is authenticated
-	if allowedUsers != "" && peer.Username != "" {
-		user, err := AuthFetch(peer.Username)
+		// check sender address from auth file if user is authenticated
+		if allowedUsers != "" && peer.Username != "" {
+			user, err := AuthFetch(peer.Username)
+			if err != nil {
+				log.Warn("sender address not allowed", slog.Any("error", err))
+				return observeErr(smtpd.Error{Code: 451, Message: "sender address not allowed"})
+			}
+
+			if !addrAllowed(addr, user.allowedAddresses) {
+				log.Warn("sender address not allowed")
+				return observeErr(smtpd.Error{Code: 451, Message: "sender address not allowed"})
+			}
+		}
+
+		// TODO: precompile this regexp and reject it at config time
+		re, err := regexp.Compile(allowedSender)
 		if err != nil {
-			log.Warn("sender address not allowed", slog.Any("error", err))
+			log.Warn("allowed_sender invalid", slog.Any("error", err), slog.String("allowed_sender", allowedSender))
 			return observeErr(smtpd.Error{Code: 451, Message: "sender address not allowed"})
 		}
 
-		if !addrAllowed(addr, user.allowedAddresses) {
-			log.Warn("sender address not allowed")
-			return observeErr(smtpd.Error{Code: 451, Message: "sender address not allowed"})
+		if re.MatchString(addr) {
+			return nil
 		}
-	}
 
-	// TODO: precompile this regexp and reject it at config time
-	re, err := regexp.Compile(allowedSender)
-	if err != nil {
-		log.Warn("allowed_sender invalid", slog.Any("error", err), slog.String("allowed_sender", allowedSender))
+		log.Warn("sender address not allowed")
+
 		return observeErr(smtpd.Error{Code: 451, Message: "sender address not allowed"})
 	}
-
-	if re.MatchString(addr) {
-		return nil
-	}
-
-	log.Warn("sender address not allowed")
-
-	return observeErr(smtpd.Error{Code: 451, Message: "sender address not allowed"})
 }
 
 func recipientChecker(allowed, denied string) func(peer smtpd.Peer, addr string) error {
@@ -216,99 +220,101 @@ func addLogHeaderFields(logHeaders map[string]string, log *slog.Logger, data []b
 	return log, nil
 }
 
-func mailHandler(peer smtpd.Peer, env smtpd.Envelope) error {
-	uniqueID := generateUUID()
+func mailHandler(cfg *config) func(peer smtpd.Peer, env smtpd.Envelope) error {
+	return func(peer smtpd.Peer, env smtpd.Envelope) error {
+		uniqueID := generateUUID()
 
-	peerIP := ""
-	if addr, ok := peer.Addr.(*net.TCPAddr); ok {
-		peerIP = addr.IP.String()
-	}
-
-	logger := slog.Default().With(
-		slog.String("component", "mail_handler"),
-		slog.String("uuid", uniqueID),
-	)
-
-	// parse headers from data if we need to log any of them
-	var err error
-	deliveryLog := logger.With(
-		slog.String("from", env.Sender),
-		slog.Any("to", env.Recipients),
-		slog.String("peer", peerIP),
-		slog.String("host", remoteHost),
-	)
-	if len(logHeaders) > 0 {
-		deliveryLog, err = addLogHeaderFields(logHeaders, deliveryLog, env.Data)
-		if err != nil {
-			logger.Warn("could not parse headers", slog.Any("error", err))
+		peerIP := ""
+		if addr, ok := peer.Addr.(*net.TCPAddr); ok {
+			peerIP = addr.IP.String()
 		}
-	}
 
-	deliveryLog.Info("delivering mail from peer using smarthost")
+		logger := slog.Default().With(
+			slog.String("component", "mail_handler"),
+			slog.String("uuid", uniqueID),
+		)
 
-	var auth smtp.Auth
-	host, _, _ := net.SplitHostPort(remoteHost)
-
-	if remoteUser != "" && remotePass != "" {
-		switch remoteAuth {
-		case "plain":
-			auth = smtp.PlainAuth("", remoteUser, remotePass, host)
-		case "login":
-			auth = LoginAuth(remoteUser, remotePass)
-		default:
-			return observeErr(smtpd.Error{Code: 530, Message: "Authentication method not supported"})
+		// parse headers from data if we need to log any of them
+		var err error
+		deliveryLog := logger.With(
+			slog.String("from", env.Sender),
+			slog.Any("to", env.Recipients),
+			slog.String("peer", peerIP),
+			slog.String("host", cfg.remoteHost),
+		)
+		if len(cfg.logHeaders) > 0 {
+			deliveryLog, err = addLogHeaderFields(cfg.logHeaders, deliveryLog, env.Data)
+			if err != nil {
+				logger.Warn("could not parse headers", slog.Any("error", err))
+			}
 		}
-	}
 
-	env.AddReceivedLine(peer)
+		deliveryLog.Info("delivering mail from peer using smarthost")
 
-	var sender string
+		var auth smtp.Auth
+		host, _, _ := net.SplitHostPort(cfg.remoteHost)
 
-	if remoteSender == "" {
-		sender = env.Sender
-	} else {
-		sender = remoteSender
-	}
+		if cfg.remoteUser != "" && cfg.remotePass != "" {
+			switch cfg.remoteAuth {
+			case "plain":
+				auth = smtp.PlainAuth("", cfg.remoteUser, cfg.remotePass, host)
+			case "login":
+				auth = LoginAuth(cfg.remoteUser, cfg.remotePass)
+			default:
+				return observeErr(smtpd.Error{Code: 530, Message: "Authentication method not supported"})
+			}
+		}
 
-	msgSizeHistogram.Observe(float64(len(env.Data)))
+		env.AddReceivedLine(peer)
 
-	start := time.Now()
-	err = SendMail(
-		remoteHost,
-		auth,
-		sender,
-		env.Recipients,
-		env.Data,
-	)
+		var sender string
 
-	if err != nil {
-		err = fmt.Errorf("sendMail: %w", err)
-
-		var smtpError smtpd.Error
-		var tperr *textproto.Error
-
-		if errors.As(err, &tperr) {
-			smtpError = smtpd.Error{Code: tperr.Code, Message: tperr.Msg}
-
-			logger.Error("delivery failed",
-				slog.Int("err_code", tperr.Code), slog.String("err_msg", tperr.Msg))
+		if cfg.remoteSender == "" {
+			sender = env.Sender
 		} else {
-			smtpError = smtpd.Error{Code: 554, Message: "Forwarding failed for message ID " + uniqueID}
-
-			logger.Error("delivery failed", slog.Any("error", err))
+			sender = cfg.remoteSender
 		}
 
-		durationHistogram.WithLabelValues(fmt.Sprintf("%v", smtpError.Code)).
+		msgSizeHistogram.Observe(float64(len(env.Data)))
+
+		start := time.Now()
+		err = SendMail(
+			cfg.remoteHost,
+			auth,
+			sender,
+			env.Recipients,
+			env.Data,
+		)
+
+		if err != nil {
+			err = fmt.Errorf("sendMail: %w", err)
+
+			var smtpError smtpd.Error
+			var tperr *textproto.Error
+
+			if errors.As(err, &tperr) {
+				smtpError = smtpd.Error{Code: tperr.Code, Message: tperr.Msg}
+
+				logger.Error("delivery failed",
+					slog.Int("err_code", tperr.Code), slog.String("err_msg", tperr.Msg))
+			} else {
+				smtpError = smtpd.Error{Code: 554, Message: "Forwarding failed for message ID " + uniqueID}
+
+				logger.Error("delivery failed", slog.Any("error", err))
+			}
+
+			durationHistogram.WithLabelValues(fmt.Sprintf("%v", smtpError.Code)).
+				Observe(time.Since(start).Seconds())
+			return observeErr(smtpError)
+		}
+
+		durationHistogram.WithLabelValues("none").
 			Observe(time.Since(start).Seconds())
-		return observeErr(smtpError)
+
+		logger.Debug("delivery successful", slog.String("host", cfg.remoteHost))
+
+		return nil
 	}
-
-	durationHistogram.WithLabelValues("none").
-		Observe(time.Since(start).Seconds())
-
-	logger.Debug("delivery successful", slog.String("host", remoteHost))
-
-	return nil
 }
 
 func generateUUID() string {
@@ -329,13 +335,13 @@ const applicationName = "smtprelay"
 
 func main() {
 	// load config as first thing
-	err := ConfigLoad()
+	cfg, err := loadConfig()
 	if err != nil {
 		slog.Default().Error("error loading config", slog.Any("error", err))
 		os.Exit(1)
 	}
 
-	if versionInfo {
+	if cfg.versionInfo {
 		fmt.Printf("%s %s\n", applicationName, version.Info())
 		return
 	}
@@ -345,18 +351,18 @@ func main() {
 	// print version on start
 	logger.Debug("config loaded", slog.String("version", version.Version))
 
-	if err := run(); err != nil {
+	if err := run(cfg); err != nil {
 		logger.Error("error running smtprelay", slog.Any("error", err))
 		os.Exit(1)
 	}
 }
 
-func run() error {
+func run(cfg *config) error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM)
 	defer stop()
 
 	// config is used here, call after config load
-	metricsSrv, err := handleMetrics(ctx, metricsListen, metricsRegistry)
+	metricsSrv, err := handleMetrics(ctx, cfg.metricsListen, metricsRegistry)
 	if err != nil {
 		return fmt.Errorf("could not start metrics server: %w", err)
 	}
@@ -365,31 +371,31 @@ func run() error {
 	logger := slog.Default()
 
 	var listeners []net.Listener
-	addresses := strings.Split(listen, " ")
+	addresses := strings.Split(cfg.listen, " ")
 
 	for i := range addresses {
 		address := addresses[i]
 
 		server := &smtpd.Server{
-			Hostname:          hostName,
-			WelcomeMessage:    welcomeMsg,
+			Hostname:          cfg.hostName,
+			WelcomeMessage:    cfg.welcomeMsg,
 			HeloChecker:       heloChecker,
-			ConnectionChecker: connectionChecker,
-			SenderChecker:     senderChecker,
-			RecipientChecker:  recipientChecker(allowedRecipients, deniedRecipients),
-			Handler:           mailHandler,
-			MaxMessageSize:    maxMessageSize,
-			MaxConnections:    maxConnections,
-			MaxRecipients:     maxRecipients,
-			ReadTimeout:       readTimeout,
-			WriteTimeout:      writeTimeout,
-			DataTimeout:       dataTimeout,
+			ConnectionChecker: connectionChecker(cfg.allowedNets),
+			SenderChecker:     senderChecker(cfg.allowedSender, cfg.allowedUsers),
+			RecipientChecker:  recipientChecker(cfg.allowedRecipients, cfg.deniedRecipients),
+			Handler:           mailHandler(cfg),
+			MaxMessageSize:    cfg.maxMessageSize,
+			MaxConnections:    cfg.maxConnections,
+			MaxRecipients:     cfg.maxRecipients,
+			ReadTimeout:       cfg.readTimeout,
+			WriteTimeout:      cfg.writeTimeout,
+			DataTimeout:       cfg.dataTimeout,
 		}
 
-		if allowedUsers != "" {
-			err := AuthLoadFile(allowedUsers)
+		if cfg.allowedUsers != "" {
+			err := AuthLoadFile(cfg.allowedUsers)
 			if err != nil {
-				return fmt.Errorf("cannot load allowed users file %q: %w", allowedUsers, err)
+				return fmt.Errorf("cannot load allowed users file %q: %w", cfg.allowedUsers, err)
 			}
 
 			server.Authenticator = authChecker
@@ -406,13 +412,13 @@ func run() error {
 
 			listeners = append(listeners, listener)
 		case strings.HasPrefix(addresses[i], "starttls://"):
-			tlsConfig, err := getServerTLSConfig(localCert, localKey)
+			tlsConfig, err := getServerTLSConfig(cfg.localCert, cfg.localKey)
 			if err != nil {
 				return fmt.Errorf("error getting Server TLS config: %w", err)
 			}
 
 			server.TLSConfig = tlsConfig
-			server.ForceTLS = localForceTLS
+			server.ForceTLS = cfg.localForceTLS
 
 			address = strings.TrimPrefix(address, "starttls://")
 			logger.Info("listening on STARTTLS address", slog.String("address", address))
@@ -424,7 +430,7 @@ func run() error {
 
 			listeners = append(listeners, listener)
 		case strings.HasPrefix(addresses[i], "tls://"):
-			tlsConfig, err := getServerTLSConfig(localCert, localKey)
+			tlsConfig, err := getServerTLSConfig(cfg.localCert, cfg.localKey)
 			if err != nil {
 				return fmt.Errorf("error getting Server TLS config: %w", err)
 			}

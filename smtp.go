@@ -68,7 +68,7 @@ func NewClient(conn net.Conn, host string) (*Client, error) {
 		text.Close()
 		return nil, err
 	}
-	c := &Client{Text: text, conn: conn, serverName: host, localName: hostName}
+	c := &Client{Text: text, conn: conn, serverName: host, localName: "localhost"}
 	_, c.tls = conn.(*tls.Conn)
 	return c, nil
 }
@@ -114,7 +114,6 @@ func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, s
 	}
 	c.Text.StartResponse(id)
 	defer c.Text.EndResponse(id)
-
 	code, msg, err := c.Text.ReadResponse(expectCode)
 	return code, msg, err
 }
