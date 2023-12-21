@@ -618,8 +618,8 @@ func (session *session) handlePROXY(cmd command) {
 	}
 
 	var (
-		newAddr    net.IP = nil
-		newTCPPort uint64 = 0
+		newAddr    net.IP
+		newTCPPort uint64
 		err        error
 	)
 

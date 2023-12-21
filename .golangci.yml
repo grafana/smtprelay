@@ -107,7 +107,7 @@ issues:
         # - gosec
         # - gosimple
         - govet
-        - ineffassign
+        # - ineffassign
         - nakedret
         - revive
         - staticcheck

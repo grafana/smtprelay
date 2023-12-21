@@ -1382,6 +1382,7 @@ func TestTLSListener(t *testing.T) {
 	}
 
 	ln, err := tls.Listen("tcp", "127.0.0.1:0", cfg)
+	require.NoError(t, err)
 	defer ln.Close()
 
 	addr := ln.Addr().String()
