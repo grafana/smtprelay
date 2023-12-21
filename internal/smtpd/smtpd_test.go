@@ -126,7 +126,7 @@ func runserver(t *testing.T, server *smtpd.Server) (addr string, closer func()) 
 	}
 
 	go func() {
-		server.Serve(ln)
+		_ = server.Serve(ln)
 	}()
 
 	done := make(chan bool)
@@ -240,7 +240,7 @@ func TestListenAndServe(t *testing.T) {
 	}
 
 	go func() {
-		server.ListenAndServe(addr)
+		_ = server.ListenAndServe(addr)
 	}()
 
 	time.Sleep(100 * time.Millisecond)
@@ -1385,7 +1385,7 @@ func TestTLSListener(t *testing.T) {
 	}
 
 	go func() {
-		server.Serve(ln)
+		_ = server.Serve(ln)
 	}()
 
 	conn, err := tls.Dial("tcp", addr, &tls.Config{InsecureSkipVerify: true})

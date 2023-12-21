@@ -55,10 +55,10 @@ type Server struct {
 
 	// mu guards doneChan and makes closing it and listener atomic from
 	// perspective of Serve()
-	mu sync.Mutex
-	doneChan chan struct{}
-	listener *net.Listener
-	waitgrp sync.WaitGroup
+	mu         sync.Mutex
+	doneChan   chan struct{}
+	listener   *net.Listener
+	waitgrp    sync.WaitGroup
 	inShutdown atomicBool // true when server is in shutdown
 }
 
@@ -136,7 +136,7 @@ func (srv *Server) newSession(c net.Conn) (s *session) {
 	if s.tls {
 		// run handshake otherwise it's done when we first
 		// read/write and connection state will be invalid
-		tlsConn.Handshake()
+		_ = tlsConn.Handshake()
 		state := tlsConn.ConnectionState()
 		s.peer.TLS = &state
 	}
@@ -228,14 +228,14 @@ func (srv *Server) Shutdown(wait bool) error {
 	// First close the listener
 	srv.mu.Lock()
 	if srv.listener != nil {
-		lnerr = (*srv.listener).Close();
+		lnerr = (*srv.listener).Close()
 	}
 	srv.closeDoneChanLocked()
 	srv.mu.Unlock()
 
 	// Now wait for all client connections to close
 	if wait {
-		srv.Wait()
+		_ = srv.Wait()
 	}
 
 	return lnerr
@@ -254,7 +254,7 @@ func (srv *Server) Wait() error {
 
 // Address returns the listening address of the server
 func (srv *Server) Address() net.Addr {
-	return (*srv.listener).Addr();
+	return (*srv.listener).Addr()
 }
 
 func (srv *Server) configureDefaults() {
@@ -321,7 +321,7 @@ func (session *session) serve() {
 
 			// Advance reader to the next newline
 
-			session.reader.ReadString('\n')
+			_, _ = session.reader.ReadString('\n')
 			session.scanner = bufio.NewScanner(session.reader)
 
 			// Reset and have the client start over.
@@ -367,9 +367,9 @@ func (session *session) reply(code int, message string) {
 }
 
 func (session *session) flush() {
-	session.conn.SetWriteDeadline(time.Now().Add(session.server.WriteTimeout))
+	_ = session.conn.SetWriteDeadline(time.Now().Add(session.server.WriteTimeout))
 	session.writer.Flush()
-	session.conn.SetReadDeadline(time.Now().Add(session.server.ReadTimeout))
+	_ = session.conn.SetReadDeadline(time.Now().Add(session.server.ReadTimeout))
 }
 
 func (session *session) error(err error) {
@@ -384,7 +384,7 @@ func (session *session) logf(format string, v ...interface{}) {
 	if session.server.ProtocolLogger == nil {
 		return
 	}
-	session.server.ProtocolLogger.Output(2, fmt.Sprintf(
+	_ = session.server.ProtocolLogger.Output(2, fmt.Sprintf(
 		"%s [peer:%s]",
 		fmt.Sprintf(format, v...),
 		session.peer.Addr,
@@ -432,7 +432,6 @@ func (session *session) close() {
 	time.Sleep(200 * time.Millisecond)
 	session.conn.Close()
 }
-
 
 // From net/http/server.go
 

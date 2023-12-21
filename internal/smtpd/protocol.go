@@ -313,7 +313,7 @@ func (session *session) handleSTARTTLS(cmd command) {
 
 	// Reset deadlines on the underlying connection before I replace it
 	// with a TLS connection
-	session.conn.SetDeadline(time.Time{})
+	_ = session.conn.SetDeadline(time.Time{})
 
 	// Replace connection with a TLS connection
 	session.conn = tlsConn
@@ -341,7 +341,7 @@ func (session *session) handleDATA(cmd command) {
 	}
 
 	session.reply(354, "Go ahead. End your data with <CR><LF>.<CR><LF>")
-	session.conn.SetDeadline(time.Now().Add(session.server.DataTimeout))
+	_ = session.conn.SetDeadline(time.Now().Add(session.server.DataTimeout))
 
 	data := &bytes.Buffer{}
 	reader := textproto.NewReader(session.reader).DotReader()

@@ -99,7 +99,7 @@ issues:
     - path: internal/smtpd/
       linters:
         # - dupl
-        - errcheck
+        # - errcheck
         - errorlint
         - gocritic
         - gofmt
