@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -121,7 +122,7 @@ func handleMetrics(ctx context.Context, addr string, registry prometheus.Registe
 
 	go func() {
 		err := srv.Serve(httpListener)
-		if err != nil && err != http.ErrServerClosed {
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Error("instrumentation server terminated with error", slog.Any("error", err))
 		}
 	}()
