@@ -100,7 +100,7 @@ issues:
       linters:
         # - dupl
         # - errcheck
-        - errorlint
+        # - errorlint
         - gocritic
         - gofmt
         - goimports

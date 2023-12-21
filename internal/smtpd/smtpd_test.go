@@ -1455,7 +1455,9 @@ func TestShutdown(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Dial did not fail as expected")
 	}
-	if _, typok := err.(*net.OpError); !typok {
+
+	var operr *net.OpError
+	if !errors.As(err, &operr) {
 		t.Fatalf("Dial did not return net.OpError as expected: %v (%T)", err, err)
 	}
 
@@ -1498,7 +1500,7 @@ func TestShutdown(t *testing.T) {
 	t.Log("Waiting for Serve() to return")
 	select {
 	case srverr := <-srvres:
-		if srverr != smtpd.ErrServerClosed {
+		if !errors.Is(srverr, smtpd.ErrServerClosed) {
 			t.Fatalf("Serve() returned error: %v", srverr)
 		}
 	case <-time.After(15 * time.Second):
@@ -1513,7 +1515,7 @@ func TestServeFailsIfShutdown(t *testing.T) {
 		t.Fatalf("Shutdown() failed: %v", err)
 	}
 	err = server.Serve(nil)
-	if err != smtpd.ErrServerClosed {
+	if !errors.Is(err, smtpd.ErrServerClosed) {
 		t.Fatalf("Serve() did not return ErrServerClosed: %v", err)
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -348,7 +349,7 @@ func (session *session) handleDATA(cmd command) {
 
 	_, err := io.CopyN(data, reader, int64(session.server.MaxMessageSize))
 
-	if err == io.EOF {
+	if errors.Is(err, io.EOF) {
 
 		// EOF was reached before MaxMessageSize
 		// Accept and deliver message

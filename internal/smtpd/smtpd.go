@@ -190,7 +190,8 @@ func (srv *Server) Serve(l net.Listener) error {
 			default:
 			}
 
-			if ne, ok := e.(net.Error); ok && ne.Temporary() {
+			var ne net.Error
+			if ok := errors.As(e, &ne); ok && ne.Temporary() {
 				time.Sleep(time.Second)
 				continue
 			}
@@ -315,7 +316,7 @@ func (session *session) serve() {
 
 		err := session.scanner.Err()
 
-		if err == bufio.ErrTooLong {
+		if errors.Is(err, bufio.ErrTooLong) {
 
 			session.reply(500, "Line too long")
 
@@ -373,7 +374,8 @@ func (session *session) flush() {
 }
 
 func (session *session) error(err error) {
-	if smtpdError, ok := err.(Error); ok {
+	var smtpdError Error
+	if errors.As(err, &smtpdError) {
 		session.reply(smtpdError.Code, smtpdError.Message)
 	} else {
 		session.reply(502, fmt.Sprintf("%s", err))
