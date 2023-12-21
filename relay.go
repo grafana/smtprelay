@@ -15,8 +15,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chrj/smtpd"
 	"github.com/google/uuid"
+	"github.com/grafana/smtprelay/internal/smtpd"
 )
 
 // relay is an SMTP relay server which can listen on a single address

@@ -4,7 +4,6 @@ go 1.21
 
 require (
 	github.com/Masterminds/semver v1.5.0
-	github.com/chrj/smtpd v0.3.1
 	github.com/google/uuid v1.5.0
 	github.com/grafana/pyroscope-go/godeltaprof v0.1.6
 	github.com/prometheus/client_golang v1.17.0

@@ -93,13 +93,29 @@ linters:
     - staticcheck
     - stylecheck
 
-# issues:
-#   # Excluding configuration per-path, per-linter, per-text and per-source
-#   exclude-rules:
-#     - path: _test\.go
-#       linters:
-#         - govet
-#         - dupl
+issues:
+  # Excluding configuration per-path, per-linter, per-text and per-source
+  exclude-rules:
+    - path: internal/smtpd/
+      linters:
+        - dupl
+        - errcheck
+        - errorlint
+        - gocritic
+        - gofmt
+        - goimports
+        - gosec
+        - gosimple
+        - govet
+        - ineffassign
+        - nakedret
+        - revive
+        - staticcheck
+        - stylecheck
+        - testableexamples
+        - thelper
+        - unparam
+        - unused
 
 # run:
 #   concurrency: 8
