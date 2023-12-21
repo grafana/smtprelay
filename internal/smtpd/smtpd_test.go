@@ -151,6 +151,7 @@ func runsslserver(t *testing.T, server *smtpd.Server) (addr string, closer func(
 	}
 
 	server.TLSConfig = &tls.Config{
+		MinVersion:   tls.VersionTLS12,
 		Certificates: []tls.Certificate{cert},
 	}
 
@@ -287,10 +288,12 @@ func TestSTARTTLS(t *testing.T) {
 		t.Fatal("STARTTLS didn't fail with invalid handshake")
 	}
 
+	//nolint:gosec
 	if err := c.StartTLS(&tls.Config{InsecureSkipVerify: true}); err != nil {
 		t.Fatalf("STARTTLS failed: %v", err)
 	}
 
+	//nolint:gosec
 	if err := c.StartTLS(&tls.Config{InsecureSkipVerify: true}); err == nil {
 		t.Fatal("STARTTLS worked twice")
 	}
@@ -360,6 +363,7 @@ func TestAuthRejection(t *testing.T) {
 		t.Fatalf("Dial failed: %v", err)
 	}
 
+	//nolint:gosec
 	if err := c.StartTLS(&tls.Config{InsecureSkipVerify: true}); err != nil {
 		t.Fatalf("STARTTLS failed: %v", err)
 	}
@@ -384,6 +388,7 @@ func TestAuthNotSupported(t *testing.T) {
 		t.Fatalf("Dial failed: %v", err)
 	}
 
+	//nolint:gosec
 	if err := c.StartTLS(&tls.Config{InsecureSkipVerify: true}); err != nil {
 		t.Fatalf("STARTTLS failed: %v", err)
 	}
@@ -411,6 +416,7 @@ func TestAuthBypass(t *testing.T) {
 		t.Fatalf("Dial failed: %v", err)
 	}
 
+	//nolint:gosec
 	if err := c.StartTLS(&tls.Config{InsecureSkipVerify: true}); err != nil {
 		t.Fatalf("STARTTLS failed: %v", err)
 	}
@@ -943,6 +949,7 @@ func TestTLSTimeout(t *testing.T) {
 		t.Fatalf("Dial failed: %v", err)
 	}
 
+	//nolint:gosec
 	if err := c.StartTLS(&tls.Config{InsecureSkipVerify: true}); err != nil {
 		t.Fatalf("STARTTLS failed: %v", err)
 	}
@@ -1089,6 +1096,7 @@ func TestEnvelopeReceived(t *testing.T) {
 		t.Fatalf("Dial failed: %v", err)
 	}
 
+	//nolint:gosec
 	if err := c.StartTLS(&tls.Config{InsecureSkipVerify: true}); err != nil {
 		t.Fatalf("STARTTLS failed: %v", err)
 	}
@@ -1171,6 +1179,7 @@ func TestLOGINAuth(t *testing.T) {
 		t.Fatalf("Dial failed: %v", err)
 	}
 
+	//nolint:gosec
 	if err := c.StartTLS(&tls.Config{InsecureSkipVerify: true}); err != nil {
 		t.Fatalf("STARTTLS failed: %v", err)
 	}
@@ -1285,9 +1294,11 @@ func TestErrors(t *testing.T) {
 	}
 
 	server.TLSConfig = &tls.Config{
+		MinVersion:   tls.VersionTLS12,
 		Certificates: []tls.Certificate{cert},
 	}
 
+	//nolint:gosec
 	if err := c.StartTLS(&tls.Config{InsecureSkipVerify: true}); err != nil {
 		t.Fatalf("STARTTLS failed: %v", err)
 	}
@@ -1366,6 +1377,7 @@ func TestTLSListener(t *testing.T) {
 	}
 
 	cfg := &tls.Config{
+		MinVersion:   tls.VersionTLS12,
 		Certificates: []tls.Certificate{cert},
 	}
 
@@ -1388,6 +1400,7 @@ func TestTLSListener(t *testing.T) {
 		_ = server.Serve(ln)
 	}()
 
+	//nolint:gosec
 	conn, err := tls.Dial("tcp", addr, &tls.Config{InsecureSkipVerify: true})
 	if err != nil {
 		t.Fatalf("couldn't connect to tls socket: %v", err)
