@@ -114,7 +114,7 @@ issues:
         - stylecheck
         - testableexamples
         # - thelper
-        - unparam
+        # - unparam
         # - unused
 
 # run:

@@ -276,7 +276,7 @@ func (session *session) handleRCPT(cmd command) {
 	session.reply(250, "Go ahead")
 }
 
-func (session *session) handleSTARTTLS(cmd command) {
+func (session *session) handleSTARTTLS(_ command) {
 
 	if session.tls {
 		session.reply(502, "Already running in TLS")
@@ -319,7 +319,7 @@ func (session *session) handleSTARTTLS(cmd command) {
 	session.flush()
 }
 
-func (session *session) handleDATA(cmd command) {
+func (session *session) handleDATA(_ command) {
 
 	if session.envelope == nil || len(session.envelope.Recipients) == 0 {
 		session.reply(502, "Missing RCPT TO command.")
@@ -372,16 +372,16 @@ func (session *session) handleDATA(cmd command) {
 	session.reset()
 }
 
-func (session *session) handleRSET(cmd command) {
+func (session *session) handleRSET(_ command) {
 	session.reset()
 	session.reply(250, "Go ahead")
 }
 
-func (session *session) handleNOOP(cmd command) {
+func (session *session) handleNOOP(_ command) {
 	session.reply(250, "Go ahead")
 }
 
-func (session *session) handleQUIT(cmd command) {
+func (session *session) handleQUIT(_ command) {
 	session.reply(221, "OK, bye")
 	session.close()
 }

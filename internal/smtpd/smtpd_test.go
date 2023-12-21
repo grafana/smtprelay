@@ -1243,7 +1243,7 @@ func TestMailFrom(t *testing.T) {
 			err = cmd(c.Text, 250, "HELO localhost")
 			require.NoError(t, err)
 
-			err = cmd(c.Text, 250, "MAIL FROM:"+d.from)
+			err = cmd(c.Text, 250, "MAIL FROM:%s", d.from)
 			require.NoError(t, err)
 
 			err = c.Quit()
