@@ -117,6 +117,7 @@ func cmd(c *textproto.Conn, expectedCode int, format string, args ...interface{}
 }
 
 func runserver(t *testing.T, server *smtpd.Server) (addr string, closer func()) {
+	t.Helper()
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -141,6 +142,7 @@ func runserver(t *testing.T, server *smtpd.Server) (addr string, closer func()) 
 }
 
 func runsslserver(t *testing.T, server *smtpd.Server) (addr string, closer func()) {
+	t.Helper()
 
 	cert, err := tls.X509KeyPair(localhostCert, localhostKey)
 	if err != nil {
