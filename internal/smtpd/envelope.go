@@ -20,7 +20,6 @@ func (env *Envelope) AddReceivedLine(peer Peer) {
 	tlsDetails := ""
 
 	tlsVersions := map[uint16]string{
-		tls.VersionSSL30: "SSL3.0",
 		tls.VersionTLS10: "TLS1.0",
 		tls.VersionTLS11: "TLS1.1",
 		tls.VersionTLS12: "TLS1.2",

@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/textproto"
 	"strconv"
@@ -357,7 +356,7 @@ func (session *session) handleDATA(_ command) {
 	}
 
 	// Discard the rest and report an error.
-	_, err = io.Copy(ioutil.Discard, reader)
+	_, err = io.Copy(io.Discard, reader)
 
 	if err != nil {
 		// Network error, ignore

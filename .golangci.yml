@@ -110,7 +110,7 @@ issues:
         # - ineffassign
         # - nakedret
         - revive
-        - staticcheck
+        # - staticcheck
         # - stylecheck
         # - testableexamples
         # - thelper

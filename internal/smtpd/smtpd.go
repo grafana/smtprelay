@@ -189,6 +189,7 @@ func (srv *Server) Serve(l net.Listener) error {
 			}
 
 			var ne net.Error
+			//nolint:staticcheck
 			if ok := errors.As(e, &ne); ok && ne.Temporary() {
 				time.Sleep(time.Second)
 				continue
