@@ -108,7 +108,7 @@ issues:
         # - gosimple
         - govet
         # - ineffassign
-        - nakedret
+        # - nakedret
         - revive
         - staticcheck
         - stylecheck

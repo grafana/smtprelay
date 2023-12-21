@@ -112,9 +112,8 @@ type session struct {
 	tls bool
 }
 
-func (srv *Server) newSession(c net.Conn) (s *session) {
-
-	s = &session{
+func (srv *Server) newSession(c net.Conn) *session {
+	s := &session{
 		server: srv,
 		conn:   c,
 		reader: bufio.NewReader(c),
@@ -143,8 +142,7 @@ func (srv *Server) newSession(c net.Conn) (s *session) {
 
 	s.scanner = bufio.NewScanner(s.reader)
 
-	return
-
+	return s
 }
 
 // ListenAndServe starts the SMTP server and listens on the address provided

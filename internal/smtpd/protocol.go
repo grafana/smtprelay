@@ -23,10 +23,11 @@ type command struct {
 	params []string
 }
 
-func parseLine(line string) (cmd command) {
-
-	cmd.line = line
-	cmd.fields = strings.Fields(line)
+func parseLine(line string) command {
+	cmd := command{
+		line:   line,
+		fields: strings.Fields(line),
+	}
 
 	if len(cmd.fields) > 0 {
 
@@ -57,8 +58,7 @@ func parseLine(line string) (cmd command) {
 
 	}
 
-	return
-
+	return cmd
 }
 
 func (session *session) handle(line string) {
