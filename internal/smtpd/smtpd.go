@@ -59,7 +59,7 @@ type Server struct {
 	doneChan   chan struct{}
 	listener   *net.Listener
 	waitgrp    sync.WaitGroup
-	inShutdown atomicBool // true when server is in shutdown
+	inShutdown atomic.Bool // true when server is in shutdown
 }
 
 // Protocol represents the protocol used in the SMTP session
@@ -222,7 +222,7 @@ func (srv *Server) Serve(l net.Listener) error {
 // to complete. If wait is false, Wait must be called afterwards.
 func (srv *Server) Shutdown(wait bool) error {
 	var lnerr error
-	srv.inShutdown.setTrue()
+	srv.inShutdown.Store(true)
 
 	// First close the listener
 	srv.mu.Lock()
@@ -436,7 +436,7 @@ func (session *session) close() {
 // From net/http/server.go
 
 func (s *Server) shuttingDown() bool {
-	return s.inShutdown.isSet()
+	return s.inShutdown.Load()
 }
 
 func (s *Server) getDoneChan() <-chan struct{} {
@@ -478,9 +478,3 @@ func (oc *onceCloseListener) Close() error {
 }
 
 func (oc *onceCloseListener) close() { oc.closeErr = oc.Listener.Close() }
-
-type atomicBool int32
-
-func (b *atomicBool) isSet() bool { return atomic.LoadInt32((*int32)(b)) != 0 }
-func (b *atomicBool) setTrue()    { atomic.StoreInt32((*int32)(b), 1) }
-func (b *atomicBool) setFalse()   { atomic.StoreInt32((*int32)(b), 0) }

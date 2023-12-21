@@ -115,7 +115,7 @@ issues:
         - testableexamples
         # - thelper
         - unparam
-        - unused
+        # - unused
 
 # run:
 #   concurrency: 8
