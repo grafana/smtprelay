@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/grafana/smtprelay/internal/smtpd"
+	"github.com/stretchr/testify/require"
 )
 
 var localhostCert = []byte(`-----BEGIN CERTIFICATE-----
@@ -1212,58 +1213,34 @@ func TestLOGINAuth(t *testing.T) {
 
 }
 
-func TestNullSender(t *testing.T) {
-
+func TestMailFrom(t *testing.T) {
 	addr, closer := runserver(t, &smtpd.Server{
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
-
 	defer closer()
 
-	c, err := smtp.Dial(addr)
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
+	testdata := []struct {
+		name, from string
+	}{
+		{"null", "<>"},
+		{"no brackets", "test@example.org"},
 	}
 
-	if err := cmd(c.Text, 250, "HELO localhost"); err != nil {
-		t.Fatalf("HELO failed: %v", err)
+	for _, d := range testdata {
+		t.Run(d.name, func(t *testing.T) {
+			c, err := smtp.Dial(addr)
+			require.NoError(t, err)
+
+			err = cmd(c.Text, 250, "HELO localhost")
+			require.NoError(t, err)
+
+			err = cmd(c.Text, 250, "MAIL FROM:"+d.from)
+			require.NoError(t, err)
+
+			err = c.Quit()
+			require.NoError(t, err)
+		})
 	}
-
-	if err := cmd(c.Text, 250, "MAIL FROM:<>"); err != nil {
-		t.Fatalf("MAIL with null sender failed: %v", err)
-	}
-
-	if err := c.Quit(); err != nil {
-		t.Fatalf("Quit failed: %v", err)
-	}
-
-}
-
-func TestNoBracketsSender(t *testing.T) {
-
-	addr, closer := runserver(t, &smtpd.Server{
-		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
-	})
-
-	defer closer()
-
-	c, err := smtp.Dial(addr)
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
-	}
-
-	if err := cmd(c.Text, 250, "HELO localhost"); err != nil {
-		t.Fatalf("HELO failed: %v", err)
-	}
-
-	if err := cmd(c.Text, 250, "MAIL FROM:test@example.org"); err != nil {
-		t.Fatalf("MAIL without brackets failed: %v", err)
-	}
-
-	if err := c.Quit(); err != nil {
-		t.Fatalf("Quit failed: %v", err)
-	}
-
 }
 
 func TestErrors(t *testing.T) {

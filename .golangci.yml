@@ -98,7 +98,7 @@ issues:
   exclude-rules:
     - path: internal/smtpd/
       linters:
-        - dupl
+        # - dupl
         - errcheck
         - errorlint
         - gocritic
