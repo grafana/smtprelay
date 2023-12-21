@@ -112,7 +112,7 @@ issues:
         - revive
         - staticcheck
         - stylecheck
-        - testableexamples
+        # - testableexamples
         # - thelper
         # - unparam
         # - unused
