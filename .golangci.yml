@@ -109,7 +109,7 @@ issues:
         - govet
         # - ineffassign
         # - nakedret
-        - revive
+        # - revive
         # - staticcheck
         # - stylecheck
         # - testableexamples
