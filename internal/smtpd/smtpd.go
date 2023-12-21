@@ -15,6 +15,8 @@ import (
 )
 
 // Server defines the parameters for running the SMTP server
+//
+//nolint:govet
 type Server struct {
 	Hostname       string // Server hostname. (default: "localhost.localdomain")
 	WelcomeMessage string // Initial server banner. (default: "<hostname> ESMTP ready.")
@@ -75,19 +77,19 @@ const (
 
 // Peer represents the client connecting to the server
 type Peer struct {
+	Addr       net.Addr             // Network address
+	TLS        *tls.ConnectionState // TLS Connection details, if on TLS
 	HeloName   string               // Server name used in HELO/EHLO command
 	Username   string               // Username from authentication, if authenticated
 	Password   string               // Password from authentication, if authenticated
 	Protocol   Protocol             // Protocol used, SMTP or ESMTP
 	ServerName string               // A copy of Server.Hostname
-	Addr       net.Addr             // Network address
-	TLS        *tls.ConnectionState // TLS Connection details, if on TLS
 }
 
 // Error represents an Error reported in the SMTP session.
 type Error struct {
-	Code    int    // The integer error code
 	Message string // The error message
+	Code    int    // The integer error code
 }
 
 // Error returns a string representation of the SMTP error
@@ -100,7 +102,6 @@ var ErrServerClosed = errors.New("smtp: Server closed")
 type session struct {
 	server *Server
 
-	peer     Peer
 	envelope *Envelope
 
 	conn net.Conn
@@ -108,6 +109,8 @@ type session struct {
 	reader  *bufio.Reader
 	writer  *bufio.Writer
 	scanner *bufio.Scanner
+
+	peer Peer
 
 	tls bool
 }
@@ -191,6 +194,7 @@ func (srv *Server) Serve(l net.Listener) error {
 			var ne net.Error
 			//nolint:staticcheck
 			if ok := errors.As(e, &ne); ok && ne.Temporary() {
+				// TODO: Exponential backoff
 				time.Sleep(time.Second)
 				continue
 			}
@@ -469,8 +473,8 @@ func (srv *Server) closeDoneChanLocked() {
 // multiple Close calls.
 type onceCloseListener struct {
 	net.Listener
-	once     sync.Once
 	closeErr error
+	once     sync.Once
 }
 
 func (oc *onceCloseListener) Close() error {

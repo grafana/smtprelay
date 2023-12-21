@@ -319,7 +319,6 @@ func (session *session) handleSTARTTLS(_ command) {
 }
 
 func (session *session) handleDATA(_ command) {
-
 	if session.envelope == nil || len(session.envelope.Recipients) == 0 {
 		session.reply(502, "Missing RCPT TO command.")
 		return
@@ -332,32 +331,27 @@ func (session *session) handleDATA(_ command) {
 	reader := textproto.NewReader(session.reader).DotReader()
 
 	_, err := io.CopyN(data, reader, int64(session.server.MaxMessageSize))
-
 	if errors.Is(err, io.EOF) {
-
 		// EOF was reached before MaxMessageSize
 		// Accept and deliver message
-
 		session.envelope.Data = data.Bytes()
 
-		if err := session.deliver(); err != nil {
+		err = session.deliver()
+		if err != nil {
 			session.error(err)
 		} else {
 			session.reply(250, "Thank you.")
 		}
 
 		session.reset()
-
-	}
-
-	if err != nil {
-		// Network error, ignore
+		return
+	} else if err != nil {
+		// Other network error, ignore
 		return
 	}
 
 	// Discard the rest and report an error.
 	_, err = io.Copy(io.Discard, reader)
-
 	if err != nil {
 		// Network error, ignore
 		return
