@@ -47,7 +47,7 @@ func parseLine(line string) (cmd command) {
 			// and appends the rest of the third field.
 
 			if cmd.fields[1][len(cmd.fields[1])-1] == ':' && len(cmd.fields) > 2 {
-				cmd.fields[1] = cmd.fields[1] + cmd.fields[2]
+				cmd.fields[1] += cmd.fields[2]
 				cmd.fields = cmd.fields[0:2]
 			}
 

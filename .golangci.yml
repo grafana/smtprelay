@@ -101,7 +101,7 @@ issues:
         # - dupl
         # - errcheck
         # - errorlint
-        - gocritic
+        # - gocritic
         - gofmt
         - goimports
         - gosec
