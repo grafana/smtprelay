@@ -304,8 +304,6 @@ func (r *relay) mailHandler(cfg *config) func(peer smtpd.Peer, env smtpd.Envelop
 			switch cfg.remoteAuth {
 			case "plain":
 				auth = smtp.PlainAuth("", cfg.remoteUser, cfg.remotePass, host)
-			case "login":
-				auth = LoginAuth(cfg.remoteUser, cfg.remotePass)
 			default:
 				return observeErr(smtpd.Error{Code: 530, Message: "Authentication method not supported"})
 			}
