@@ -324,7 +324,7 @@ func (r *relay) mailHandler(cfg *config) func(peer smtpd.Peer, env smtpd.Envelop
 		msgSizeHistogram.Observe(float64(len(env.Data)))
 
 		start := time.Now()
-		err = SendMail(
+		err = smtp.SendMail(
 			cfg.remoteHost,
 			auth,
 			sender,
