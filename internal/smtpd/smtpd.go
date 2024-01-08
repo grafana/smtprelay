@@ -3,6 +3,7 @@ package smtpd
 
 import (
 	"bufio"
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -32,20 +33,20 @@ type Server struct {
 	// New e-mails are handed off to this function.
 	// Can be left empty for a NOOP server.
 	// If an error is returned, it will be reported in the SMTP session.
-	Handler func(peer Peer, env Envelope) error
+	Handler func(ctx context.Context, peer Peer, env Envelope) error
 
 	// Enable various checks during the SMTP session.
 	// Can be left empty for no restrictions.
 	// If an error is returned, it will be reported in the SMTP session.
 	// Use the Error struct for access to error codes.
-	ConnectionChecker func(peer Peer) error              // Called upon new connection.
-	HeloChecker       func(peer Peer, name string) error // Called after HELO/EHLO.
-	SenderChecker     func(peer Peer, addr string) error // Called after MAIL FROM.
-	RecipientChecker  func(peer Peer, addr string) error // Called after each RCPT TO.
+	ConnectionChecker func(ctx context.Context, peer Peer) error              // Called upon new connection.
+	HeloChecker       func(ctx context.Context, peer Peer, name string) error // Called after HELO/EHLO.
+	SenderChecker     func(ctx context.Context, peer Peer, addr string) error // Called after MAIL FROM.
+	RecipientChecker  func(ctx context.Context, peer Peer, addr string) error // Called after each RCPT TO.
 
 	// Enable PLAIN/LOGIN authentication, only available after STARTTLS.
 	// Can be left empty for no authentication support.
-	Authenticator func(peer Peer, username, password string) error
+	Authenticator func(ctx context.Context, peer Peer, username, password string) error
 
 	EnableXCLIENT       bool // Enable XCLIENT support (default: false)
 	EnableProxyProtocol bool // Enable proxy protocol support (default: false)
@@ -54,6 +55,11 @@ type Server struct {
 	ForceTLS  bool        // Force STARTTLS usage.
 
 	ProtocolLogger *log.Logger
+
+	// ConnContext optionally specifies a function that modifies
+	// the context used for a new connection c. The provided ctx
+	// is derived from the base context.
+	ConnContext func(ctx context.Context, c net.Conn) context.Context
 
 	// mu guards doneChan and makes closing it and listener atomic from
 	// perspective of Serve()
@@ -148,24 +154,25 @@ func (srv *Server) newSession(c net.Conn) *session {
 	return s
 }
 
-// ListenAndServe starts the SMTP server and listens on the address provided
-func (srv *Server) ListenAndServe(addr string) error {
+// ListenAndServe starts the SMTP server and listens on addr, using ctx as the
+// base context for incoming requests.
+func (srv *Server) ListenAndServe(ctx context.Context, addr string) error {
 	if srv.shuttingDown() {
 		return ErrServerClosed
 	}
 
-	srv.configureDefaults()
-
-	l, err := net.Listen("tcp", addr)
+	lc := net.ListenConfig{}
+	l, err := lc.Listen(ctx, "tcp", addr)
 	if err != nil {
 		return err
 	}
 
-	return srv.Serve(l)
+	return srv.Serve(ctx, l)
 }
 
-// Serve starts the SMTP server and listens on the Listener provided
-func (srv *Server) Serve(l net.Listener) error {
+// Serve starts the SMTP server and listens on l, using ctx as the base context
+// for incoming requests.
+func (srv *Server) Serve(ctx context.Context, l net.Listener) error {
 	if srv.shuttingDown() {
 		return ErrServerClosed
 	}
@@ -182,12 +189,21 @@ func (srv *Server) Serve(l net.Listener) error {
 		limiter = make(chan struct{}, srv.MaxConnections)
 	}
 
+	// shut down the server if the context is cancelled, but wait for all
+	// connections to finish
+	go func() {
+		<-ctx.Done()
+		_ = srv.Shutdown(true)
+	}()
+
 	for {
 		conn, e := l.Accept()
 		if e != nil {
 			select {
 			case <-srv.getDoneChan():
 				return ErrServerClosed
+			case <-ctx.Done():
+				return ctx.Err()
 			default:
 			}
 
@@ -195,10 +211,23 @@ func (srv *Server) Serve(l net.Listener) error {
 			//nolint:staticcheck
 			if ok := errors.As(e, &ne); ok && ne.Temporary() {
 				// TODO: Exponential backoff
-				time.Sleep(time.Second)
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case <-time.After(time.Second):
+				}
+
 				continue
 			}
 			return e
+		}
+
+		connCtx := ctx
+		if cc := srv.ConnContext; cc != nil {
+			connCtx = cc(connCtx, conn)
+			if connCtx == nil {
+				panic("ConnContext returned nil")
+			}
 		}
 
 		session := srv.newSession(conn)
@@ -206,20 +235,20 @@ func (srv *Server) Serve(l net.Listener) error {
 		srv.waitgrp.Add(1)
 		go func() {
 			defer srv.waitgrp.Done()
+
 			if limiter != nil {
 				select {
 				case limiter <- struct{}{}:
-					session.serve()
+					session.serve(connCtx)
 					<-limiter
 				default:
 					session.reject()
 				}
 			} else {
-				session.serve()
+				session.serve(connCtx)
 			}
 		}()
 	}
-
 }
 
 // Shutdown instructs the server to shutdown, starting by closing the
@@ -262,7 +291,6 @@ func (srv *Server) Address() net.Addr {
 }
 
 func (srv *Server) configureDefaults() {
-
 	if srv.MaxMessageSize == 0 {
 		srv.MaxMessageSize = 10240000
 	}
@@ -298,23 +326,25 @@ func (srv *Server) configureDefaults() {
 	if srv.WelcomeMessage == "" {
 		srv.WelcomeMessage = fmt.Sprintf("%s ESMTP ready.", srv.Hostname)
 	}
-
 }
 
-func (session *session) serve() {
-
+func (session *session) serve(ctx context.Context) {
 	defer session.close()
 
+	if ctx.Err() != nil {
+		session.reject()
+		return
+	}
+
 	if !session.server.EnableProxyProtocol {
-		session.welcome()
+		session.welcome(ctx)
 	}
 
 	for {
-
 		for session.scanner.Scan() {
 			line := session.scanner.Text()
 			session.logf("received: %s", strings.TrimSpace(line))
-			session.handle(line)
+			session.handle(ctx, line)
 		}
 
 		err := session.scanner.Err()
@@ -349,10 +379,9 @@ func (session *session) reset() {
 	session.envelope = nil
 }
 
-func (session *session) welcome() {
-
+func (session *session) welcome(ctx context.Context) {
 	if session.server.ConnectionChecker != nil {
-		err := session.server.ConnectionChecker(session.peer)
+		err := session.server.ConnectionChecker(ctx, session.peer)
 		if err != nil {
 			session.error(err)
 			session.close()
@@ -361,12 +390,11 @@ func (session *session) welcome() {
 	}
 
 	session.reply(220, session.server.WelcomeMessage)
-
 }
 
 func (session *session) reply(code int, message string) {
 	session.logf("sending: %d %s", code, message)
-	fmt.Fprintf(session.writer, "%d %s\r\n", code, message)
+	_, _ = fmt.Fprintf(session.writer, "%d %s\r\n", code, message)
 	session.flush()
 }
 
@@ -389,12 +417,12 @@ func (session *session) logf(format string, v ...interface{}) {
 	if session.server.ProtocolLogger == nil {
 		return
 	}
+
 	_ = session.server.ProtocolLogger.Output(2, fmt.Sprintf(
 		"%s [peer:%s]",
 		fmt.Sprintf(format, v...),
 		session.peer.Addr,
 	))
-
 }
 
 func (session *session) logError(err error, desc string) {
@@ -402,7 +430,6 @@ func (session *session) logError(err error, desc string) {
 }
 
 func (session *session) extensions() []string {
-
 	extensions := []string{
 		fmt.Sprintf("SIZE %d", session.server.MaxMessageSize),
 		"8BITMIME",
@@ -422,13 +449,13 @@ func (session *session) extensions() []string {
 	}
 
 	return extensions
-
 }
 
-func (session *session) deliver() error {
+func (session *session) deliver(ctx context.Context) error {
 	if session.server.Handler != nil {
-		return session.server.Handler(session.peer, *session.envelope)
+		return session.server.Handler(ctx, session.peer, *session.envelope)
 	}
+
 	return nil
 }
 

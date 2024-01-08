@@ -25,7 +25,7 @@ func main() {
 	// load config as first thing
 	cfg, err := loadConfig()
 	if err != nil {
-		slog.Default().Error("error loading config", slog.Any("error", err))
+		slog.Error("error loading config", slog.Any("error", err))
 		os.Exit(1)
 	}
 
@@ -34,19 +34,17 @@ func main() {
 		return
 	}
 
-	logger := slog.Default()
-
 	// print version on start
-	logger.Debug("config loaded", slog.String("version", version.Version))
+	slog.Debug("config loaded", slog.String("version", version.Version))
 
-	if err := run(cfg); err != nil {
-		logger.Error("error running smtprelay", slog.Any("error", err))
+	if err := run(context.Background(), cfg); err != nil {
+		slog.Error("error running smtprelay", slog.Any("error", err))
 		os.Exit(1)
 	}
 }
 
-func run(cfg *config) error {
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM)
+func run(ctx context.Context, cfg *config) error {
+	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM)
 	defer stop()
 
 	metricsSrv, err := handleMetrics(ctx, cfg.metricsListen, metricsRegistry)
@@ -55,15 +53,15 @@ func run(cfg *config) error {
 	}
 	defer metricsSrv.Stop()
 
-	logger := slog.Default()
-
 	addresses := strings.Split(cfg.listen, " ")
+
+	errch := make(chan error)
 
 	for i := range addresses {
 		address := addresses[i]
 
 		var relay *relay
-		relay, err = newRelay(logger, cfg)
+		relay, err = newRelay(cfg)
 		if err != nil {
 			return fmt.Errorf("error creating relay: %w", err)
 		}
@@ -74,29 +72,29 @@ func run(cfg *config) error {
 			return fmt.Errorf("error listening on address %q: %w", address, err)
 		}
 
-		logger.Info("listening on address", slog.String("address", address))
+		slog.InfoContext(ctx, "listening on address", slog.String("address", address))
 
 		defer func(ctx context.Context) {
-			logger.Warn("closing listener", slog.String("address", address))
+			slog.WarnContext(ctx, "closing listener", slog.String("address", address))
 
 			_ = relay.shutdown(ctx)
 		}(ctx)
 
 		go func() {
-			err = relay.serve(listener)
-			if err != nil && !errors.Is(err, smtpd.ErrServerClosed) {
-				err = fmt.Errorf("relay shutdown with an error: %w", err)
+			serveErr := relay.serve(ctx, listener)
+			if serveErr != nil && !errors.Is(serveErr, smtpd.ErrServerClosed) {
+				serveErr = fmt.Errorf("relay shutdown with an error: %w", serveErr)
 			}
 
-			// cancel the context so we can exit
-			stop()
+			errch <- serveErr
 		}()
 	}
 
-	// Now wait for the context to be cancelled through a signal or other cause
-	<-ctx.Done()
-
-	if err == nil {
+	// Now wait for the server to stop, either by a signal or by an error
+	select {
+	case err = <-errch:
+		err = fmt.Errorf("relay error: %w", err)
+	case <-ctx.Done():
 		// if we got to this point without err being set, it's probably due to
 		// a signal being received
 		err = fmt.Errorf("exiting: %w", ctx.Err())

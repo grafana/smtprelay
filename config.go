@@ -75,7 +75,7 @@ func loadConfig() (*config, error) {
 
 	setupLogger(cfg.logFormat, cfg.logLevel)
 
-	logger := slog.Default().With(slog.String("component", "config"))
+	logger := slog.With(slog.String("component", "config"))
 
 	// if remotePass is not set, try reading it from env var
 	if cfg.remotePass == "" {

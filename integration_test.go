@@ -3,10 +3,10 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"net"
 	"net/smtp"
 	"net/textproto"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -22,28 +22,28 @@ type testSMTPServer struct {
 	addr string
 }
 
-func startTestSMTPServer(t *testing.T) *testSMTPServer {
+func startTestSMTPServer(ctx context.Context, t *testing.T) *testSMTPServer {
 	t.Helper()
 
 	msgs := &[]smtpd.Envelope{}
 	srv := &smtpd.Server{
-		ConnectionChecker: func(peer smtpd.Peer) error {
+		ConnectionChecker: func(ctx context.Context, peer smtpd.Peer) error {
 			t.Logf("Connection from %s", peer.HeloName)
 			return nil
 		},
-		HeloChecker: func(peer smtpd.Peer, name string) error {
+		HeloChecker: func(ctx context.Context, peer smtpd.Peer, name string) error {
 			t.Logf("HELO (%s) %s", peer.Protocol, name)
 			return nil
 		},
-		SenderChecker: func(peer smtpd.Peer, addr string) error {
+		SenderChecker: func(ctx context.Context, peer smtpd.Peer, addr string) error {
 			t.Logf("MAIL FROM %s", addr)
 			return nil
 		},
-		RecipientChecker: func(peer smtpd.Peer, addr string) error {
+		RecipientChecker: func(ctx context.Context, peer smtpd.Peer, addr string) error {
 			t.Logf("RCPT TO %s", addr)
 			return nil
 		},
-		Handler: func(peer smtpd.Peer, env smtpd.Envelope) error {
+		Handler: func(ctx context.Context, peer smtpd.Peer, env smtpd.Envelope) error {
 			t.Logf("DATA\n----\n%s\n----", env.Data)
 			m := append(*msgs, env)
 			*msgs = m
@@ -52,12 +52,10 @@ func startTestSMTPServer(t *testing.T) *testSMTPServer {
 	}
 
 	l, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("failed to listen: %v", err)
-	}
+	require.NoError(t, err)
 
 	go func(l net.Listener) {
-		_ = srv.Serve(l)
+		_ = srv.Serve(ctx, l)
 	}(l)
 
 	t.Cleanup(func() {
@@ -87,7 +85,7 @@ func sendMsg(t *testing.T, addr string, to []string, from, subject string, hdrs 
 //
 // TODO: refactor smtprelay to be more testable (allow passing in the logger and
 // metrics registry, provide a good way to shut down the server, etc...)
-func startRelay(t *testing.T, srvAddr string) string {
+func startRelay(ctx context.Context, t *testing.T, srvAddr string) string {
 	t.Helper()
 
 	addr := ""
@@ -99,15 +97,16 @@ func startRelay(t *testing.T, srvAddr string) string {
 	_ = l.Close()
 
 	go func() {
-		os.Args = []string{"smtprelay",
-			"-log_level", "debug",
-			"-listen", addr,
-			"-metrics_listen", "127.0.0.1:0",
-			"-remote_host", srvAddr,
+		metricsRegistry = prometheus.NewRegistry()
+
+		cfg := &config{
+			listen:        addr,
+			metricsListen: "127.0.0.1:0",
+			remoteHost:    srvAddr,
+			logLevel:      "debug",
 		}
 
-		metricsRegistry = prometheus.NewRegistry()
-		main()
+		_ = run(ctx, cfg)
 	}()
 
 	// wait for the server to start
@@ -125,9 +124,12 @@ func startRelay(t *testing.T, srvAddr string) string {
 }
 
 func TestSendMail(t *testing.T) {
-	srv := startTestSMTPServer(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
 
-	addr := startRelay(t, srv.addr)
+	srv := startTestSMTPServer(ctx, t)
+
+	addr := startRelay(ctx, t, srv.addr)
 
 	err := sendMsg(t, addr, []string{"alice@example.com"},
 		"bob@example.com", "test message", textproto.MIMEHeader{}, "hello world")

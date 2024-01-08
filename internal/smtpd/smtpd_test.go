@@ -2,6 +2,7 @@ package smtpd_test
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -19,7 +20,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var localhostCert = []byte(`-----BEGIN CERTIFICATE-----
+var (
+	localhostCert = []byte(`-----BEGIN CERTIFICATE-----
 MIIFkzCCA3ugAwIBAgIUQvhoyGmvPHq8q6BHrygu4dPp0CkwDQYJKoZIhvcNAQEL
 BQAwWTELMAkGA1UEBhMCQVUxEzARBgNVBAgMClNvbWUtU3RhdGUxITAfBgNVBAoM
 GEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZDESMBAGA1UEAwwJbG9jYWxob3N0MB4X
@@ -52,7 +54,7 @@ A2wsUyutzK19nt4hjVrTX0At9ku3gMmViXFlbvyA1Y4TuhdUYqJauMBrWKl2ybDW
 yhdKg/V3yTwgBUtb3QO4m1khNQjQLuPFVxULGEA38Y5dXSONsYnt
 -----END CERTIFICATE-----`)
 
-var localhostKey = []byte(`-----BEGIN PRIVATE KEY-----
+	localhostKey = []byte(`-----BEGIN PRIVATE KEY-----
 MIIJQgIBADANBgkqhkiG9w0BAQEFAASCCSwwggkoAgEAAoICAQCTvvemXJ8ri7a4
 ghnofu8SdNvmolPpH8oJj3KeJG8IVX6MKshICz3SmBT78/yJ4+dlEZtEIYa3UH7X
 8kBUshgVm5rAgsc2zjJYoDCHS42lHU95zy/u+mo2l1TNcpAoioXKdKRwsDxzYM5n
@@ -104,6 +106,10 @@ d6OWtKINyuVosvlGzquht+ZnejJAgr1XsgF9cCxZonecwYQRlBvOjMRidCTpjzCu
 TXU5YrNA8ao1B6CFdyjmLzoY2C9d9SDQTXMX8f8f3GUo9gZ0IzSIFVGFpsKBU0QM
 hBgHM6A0WJC9MO3aAKRBcp48y6DXNA==
 -----END PRIVATE KEY-----`)
+)
+
+//nolint:gosec
+var testTLSConfig = &tls.Config{InsecureSkipVerify: true}
 
 func cmd(c *textproto.Conn, expectedCode int, format string, args ...interface{}) error {
 	id, err := c.Cmd(format, args...)
@@ -121,22 +127,24 @@ func cmd(c *textproto.Conn, expectedCode int, format string, args ...interface{}
 func runserver(t *testing.T, server *smtpd.Server) (addr string, closer func()) {
 	t.Helper()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 
 	go func() {
-		_ = server.Serve(ln)
+		_ = server.Serve(ctx, ln)
 	}()
 
-	done := make(chan bool)
-
 	go func() {
-		<-done
+		<-ctx.Done()
+
 		ln.Close()
 	}()
 
 	return ln.Addr().String(), func() {
-		done <- true
+		cancel()
 	}
 }
 
@@ -214,8 +222,11 @@ func TestListenAndServe(t *testing.T) {
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	go func() {
-		_ = server.ListenAndServe(addr)
+		_ = server.ListenAndServe(ctx, addr)
 	}()
 
 	time.Sleep(100 * time.Millisecond)
@@ -229,7 +240,7 @@ func TestListenAndServe(t *testing.T) {
 
 func TestSTARTTLS(t *testing.T) {
 	addr, closer := runsslserver(t, &smtpd.Server{
-		Authenticator:  func(peer smtpd.Peer, username, password string) error { return nil },
+		Authenticator:  func(ctx context.Context, peer smtpd.Peer, username, password string) error { return nil },
 		ForceTLS:       true,
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
@@ -298,7 +309,7 @@ func TestSTARTTLS(t *testing.T) {
 
 func TestAuthRejection(t *testing.T) {
 	addr, closer := runsslserver(t, &smtpd.Server{
-		Authenticator: func(peer smtpd.Peer, username, password string) error {
+		Authenticator: func(ctx context.Context, peer smtpd.Peer, username, password string) error {
 			return smtpd.Error{Code: 550, Message: "Denied"}
 		},
 		ForceTLS:       true,
@@ -309,8 +320,7 @@ func TestAuthRejection(t *testing.T) {
 	c, err := smtp.Dial(addr)
 	require.NoError(t, err)
 
-	//nolint:gosec
-	err = c.StartTLS(&tls.Config{InsecureSkipVerify: true})
+	err = c.StartTLS(testTLSConfig)
 	require.NoError(t, err)
 
 	err = c.Auth(smtp.PlainAuth("foo", "foo", "bar", "127.0.0.1"))
@@ -327,8 +337,7 @@ func TestAuthNotSupported(t *testing.T) {
 	c, err := smtp.Dial(addr)
 	require.NoError(t, err)
 
-	//nolint:gosec
-	err = c.StartTLS(&tls.Config{InsecureSkipVerify: true})
+	err = c.StartTLS(testTLSConfig)
 	require.NoError(t, err)
 
 	err = c.Auth(smtp.PlainAuth("foo", "foo", "bar", "127.0.0.1"))
@@ -337,7 +346,7 @@ func TestAuthNotSupported(t *testing.T) {
 
 func TestAuthBypass(t *testing.T) {
 	addr, closer := runsslserver(t, &smtpd.Server{
-		Authenticator: func(peer smtpd.Peer, username, password string) error {
+		Authenticator: func(ctx context.Context, peer smtpd.Peer, username, password string) error {
 			return smtpd.Error{Code: 550, Message: "Denied"}
 		},
 		ForceTLS:       true,
@@ -348,8 +357,7 @@ func TestAuthBypass(t *testing.T) {
 	c, err := smtp.Dial(addr)
 	require.NoError(t, err)
 
-	//nolint:gosec
-	err = c.StartTLS(&tls.Config{InsecureSkipVerify: true})
+	err = c.StartTLS(testTLSConfig)
 	require.NoError(t, err)
 
 	err = c.Mail("sender@example.org")
@@ -358,7 +366,7 @@ func TestAuthBypass(t *testing.T) {
 
 func TestConnectionCheck(t *testing.T) {
 	addr, closer := runserver(t, &smtpd.Server{
-		ConnectionChecker: func(peer smtpd.Peer) error {
+		ConnectionChecker: func(ctx context.Context, peer smtpd.Peer) error {
 			return smtpd.Error{Code: 552, Message: "Denied"}
 		},
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
@@ -371,7 +379,7 @@ func TestConnectionCheck(t *testing.T) {
 
 func TestConnectionCheckSimpleError(t *testing.T) {
 	addr, closer := runserver(t, &smtpd.Server{
-		ConnectionChecker: func(peer smtpd.Peer) error {
+		ConnectionChecker: func(ctx context.Context, peer smtpd.Peer) error {
 			return errors.New("Denied")
 		},
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
@@ -384,7 +392,7 @@ func TestConnectionCheckSimpleError(t *testing.T) {
 
 func TestHELOCheck(t *testing.T) {
 	addr, closer := runserver(t, &smtpd.Server{
-		HeloChecker: func(peer smtpd.Peer, name string) error {
+		HeloChecker: func(ctx context.Context, peer smtpd.Peer, name string) error {
 			require.Equal(t, "foobar.local", name)
 			return smtpd.Error{Code: 552, Message: "Denied"}
 		},
@@ -402,7 +410,7 @@ func TestHELOCheck(t *testing.T) {
 
 func TestSenderCheck(t *testing.T) {
 	addr, closer := runserver(t, &smtpd.Server{
-		SenderChecker: func(peer smtpd.Peer, addr string) error {
+		SenderChecker: func(ctx context.Context, peer smtpd.Peer, addr string) error {
 			return smtpd.Error{Code: 552, Message: "Denied"}
 		},
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
@@ -418,7 +426,7 @@ func TestSenderCheck(t *testing.T) {
 
 func TestRecipientCheck(t *testing.T) {
 	addr, closer := runserver(t, &smtpd.Server{
-		RecipientChecker: func(peer smtpd.Peer, addr string) error {
+		RecipientChecker: func(ctx context.Context, peer smtpd.Peer, addr string) error {
 			return smtpd.Error{Code: 552, Message: "Denied"}
 		},
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
@@ -467,7 +475,7 @@ func TestMaxMessageSize(t *testing.T) {
 func TestHandler(t *testing.T) {
 
 	addr, closer := runserver(t, &smtpd.Server{
-		Handler: func(peer smtpd.Peer, env smtpd.Envelope) error {
+		Handler: func(ctx context.Context, peer smtpd.Peer, env smtpd.Envelope) error {
 			assert.Equal(t, "sender@example.org", env.Sender)
 			assert.Len(t, env.Recipients, 1)
 			assert.Equal(t, "recipient@example.net", env.Recipients[0])
@@ -503,9 +511,8 @@ func TestHandler(t *testing.T) {
 }
 
 func TestRejectHandler(t *testing.T) {
-
 	addr, closer := runserver(t, &smtpd.Server{
-		Handler: func(peer smtpd.Peer, env smtpd.Envelope) error {
+		Handler: func(ctx context.Context, peer smtpd.Peer, env smtpd.Envelope) error {
 			return smtpd.Error{Code: 550, Message: "Rejected"}
 		},
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
@@ -664,7 +671,7 @@ func TestDATAbeforeRCPT(t *testing.T) {
 
 func TestInterruptedDATA(t *testing.T) {
 	addr, closer := runserver(t, &smtpd.Server{
-		Handler: func(peer smtpd.Peer, env smtpd.Envelope) error {
+		Handler: func(ctx context.Context, peer smtpd.Peer, env smtpd.Envelope) error {
 			t.Fatal("Accepted DATA despite disconnection")
 			return nil
 		},
@@ -735,8 +742,7 @@ func TestTLSTimeout(t *testing.T) {
 	c, err := smtp.Dial(addr)
 	require.NoError(t, err)
 
-	//nolint:gosec
-	err = c.StartTLS(&tls.Config{InsecureSkipVerify: true})
+	err = c.StartTLS(testTLSConfig)
 	require.NoError(t, err)
 
 	time.Sleep(100 * time.Millisecond)
@@ -779,7 +785,7 @@ func TestLongLine(t *testing.T) {
 func TestXCLIENT(t *testing.T) {
 	addr, closer := runserver(t, &smtpd.Server{
 		EnableXCLIENT: true,
-		SenderChecker: func(peer smtpd.Peer, addr string) error {
+		SenderChecker: func(ctx context.Context, peer smtpd.Peer, addr string) error {
 			require.Equal(t, "new.example.net", peer.HeloName)
 			require.Equal(t, "42.42.42.42:4242", peer.Addr.String())
 			require.Equal(t, "newusername", peer.Username)
@@ -825,7 +831,7 @@ func TestXCLIENT(t *testing.T) {
 func TestEnvelopeReceived(t *testing.T) {
 	addr, closer := runsslserver(t, &smtpd.Server{
 		Hostname: "foobar.example.net",
-		Handler: func(peer smtpd.Peer, env smtpd.Envelope) error {
+		Handler: func(ctx context.Context, peer smtpd.Peer, env smtpd.Envelope) error {
 			env.AddReceivedLine(peer)
 			if !bytes.HasPrefix(env.Data, []byte("Received: from localhost ([127.0.0.1]) by foobar.example.net with ESMTP;")) {
 				t.Fatal("Wrong received line.")
@@ -840,8 +846,7 @@ func TestEnvelopeReceived(t *testing.T) {
 	c, err := smtp.Dial(addr)
 	require.NoError(t, err)
 
-	//nolint:gosec
-	err = c.StartTLS(&tls.Config{InsecureSkipVerify: true})
+	err = c.StartTLS(testTLSConfig)
 	require.NoError(t, err)
 
 	err = c.Mail("sender@example.org")
@@ -891,7 +896,7 @@ func TestHELO(t *testing.T) {
 
 func TestLOGINAuth(t *testing.T) {
 	addr, closer := runsslserver(t, &smtpd.Server{
-		Authenticator:  func(peer smtpd.Peer, username, password string) error { return nil },
+		Authenticator:  func(ctx context.Context, peer smtpd.Peer, username, password string) error { return nil },
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
 
@@ -900,8 +905,7 @@ func TestLOGINAuth(t *testing.T) {
 	c, err := smtp.Dial(addr)
 	require.NoError(t, err)
 
-	//nolint:gosec
-	err = c.StartTLS(&tls.Config{InsecureSkipVerify: true})
+	err = c.StartTLS(testTLSConfig)
 	require.NoError(t, err)
 
 	err = cmd(c.Text, 334, "AUTH LOGIN")
@@ -967,7 +971,7 @@ func TestErrors(t *testing.T) {
 	require.NoError(t, err)
 
 	server := &smtpd.Server{
-		Authenticator:  func(peer smtpd.Peer, username, password string) error { return nil },
+		Authenticator:  func(ctx context.Context, peer smtpd.Peer, username, password string) error { return nil },
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	}
 
@@ -997,8 +1001,7 @@ func TestErrors(t *testing.T) {
 		Certificates: []tls.Certificate{cert},
 	}
 
-	//nolint:gosec
-	err = c.StartTLS(&tls.Config{InsecureSkipVerify: true})
+	err = c.StartTLS(testTLSConfig)
 	require.NoError(t, err)
 
 	err = cmd(c.Text, 502, "AUTH UNKNOWN")
@@ -1028,7 +1031,7 @@ func TestErrors(t *testing.T) {
 
 func TestMailformedMAILFROM(t *testing.T) {
 	addr, closer := runserver(t, &smtpd.Server{
-		SenderChecker: func(peer smtpd.Peer, addr string) error {
+		SenderChecker: func(ctx context.Context, peer smtpd.Peer, addr string) error {
 			if addr != "test@example.org" {
 				return smtpd.Error{Code: 502, Message: "Denied"}
 			}
@@ -1060,6 +1063,9 @@ func TestTLSListener(t *testing.T) {
 		Certificates: []tls.Certificate{cert},
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	ln, err := tls.Listen("tcp", "127.0.0.1:0", cfg)
 	require.NoError(t, err)
 
@@ -1068,7 +1074,7 @@ func TestTLSListener(t *testing.T) {
 	addr := ln.Addr().String()
 
 	server := &smtpd.Server{
-		Authenticator: func(peer smtpd.Peer, username, password string) error {
+		Authenticator: func(ctx context.Context, peer smtpd.Peer, username, password string) error {
 			require.NotNil(t, peer.TLS, "didn't correctly set connection state on TLS connection")
 			return nil
 		},
@@ -1076,11 +1082,10 @@ func TestTLSListener(t *testing.T) {
 	}
 
 	go func() {
-		_ = server.Serve(ln)
+		_ = server.Serve(ctx, ln)
 	}()
 
-	//nolint:gosec
-	conn, err := tls.Dial("tcp", addr, &tls.Config{InsecureSkipVerify: true})
+	conn, err := tls.Dial("tcp", addr, testTLSConfig)
 	require.NoError(t, err)
 
 	c, err := smtp.NewClient(conn, "localhost")
@@ -1104,13 +1109,16 @@ func TestShutdown(t *testing.T) {
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 
 	srvres := make(chan error)
 	go func() {
 		t.Log("Starting server")
-		srvres <- server.Serve(ln)
+		srvres <- server.Serve(ctx, ln)
 	}()
 
 	// Connect a client
@@ -1180,7 +1188,7 @@ func TestServeFailsIfShutdown(t *testing.T) {
 	err := server.Shutdown(true)
 	require.NoError(t, err)
 
-	err = server.Serve(nil)
+	err = server.Serve(context.Background(), nil)
 	require.ErrorIs(t, err, smtpd.ErrServerClosed)
 }
 
@@ -1188,4 +1196,132 @@ func TestWaitFailsIfNotShutdown(t *testing.T) {
 	server := &smtpd.Server{}
 	err := server.Wait()
 	require.Error(t, err)
+}
+
+func TestServe_Context(t *testing.T) {
+	lc := net.ListenConfig{}
+
+	t.Run("cancelled context", func(t *testing.T) {
+		server := &smtpd.Server{}
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		ln, err := lc.Listen(ctx, "tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+
+		t.Cleanup(func() {
+			_ = ln.Close()
+		})
+
+		errch := make(chan error)
+		go func() {
+			errch <- server.Serve(ctx, ln)
+		}()
+
+		select {
+		case <-time.After(1 * time.Second):
+			t.Fatal("Timed out waiting for Serve() to return")
+		case err := <-errch:
+			require.Error(t, err)
+		}
+	})
+
+	t.Run("cancelled context after serve", func(t *testing.T) {
+		server := &smtpd.Server{}
+		t.Cleanup(func() {
+			_ = server.Shutdown(false)
+		})
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		ln, err := lc.Listen(ctx, "tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+
+		t.Cleanup(func() {
+			_ = ln.Close()
+		})
+
+		errch := make(chan error)
+		go func() {
+			errch <- server.Serve(ctx, ln)
+		}()
+
+		cancel()
+
+		select {
+		case <-time.After(1 * time.Second):
+			t.Fatal("Timed out waiting for Serve() to return")
+		case err := <-errch:
+			require.Error(t, err)
+		}
+	})
+
+	t.Run("cancelled context after serve and accept", func(t *testing.T) {
+		server := &smtpd.Server{}
+		t.Cleanup(func() {
+			_ = server.Shutdown(false)
+		})
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		ln, err := lc.Listen(ctx, "tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+
+		t.Cleanup(func() {
+			_ = ln.Close()
+		})
+
+		errch := make(chan error)
+		go func() {
+			errch <- server.Serve(ctx, ln)
+		}()
+
+		client, err := smtp.Dial(ln.Addr().String())
+		require.NoError(t, err)
+
+		t.Cleanup(func() {
+			_ = client.Close()
+		})
+
+		// wait enough time for Serve() to get into the accept loop
+		time.Sleep(50 * time.Millisecond)
+		cancel()
+
+		select {
+		case <-time.After(1 * time.Second):
+			t.Fatal("Timed out waiting for Serve() to return")
+		case err := <-errch:
+			require.Error(t, err)
+		}
+	})
+
+	t.Run("connection context cancelled doesn't close server", func(t *testing.T) {
+		server := &smtpd.Server{
+			ConnContext: func(ctx context.Context, conn net.Conn) context.Context {
+				ctx, cancel := context.WithCancel(ctx)
+				cancel()
+				return ctx
+			},
+		}
+		t.Cleanup(func() {
+			_ = server.Shutdown(false)
+		})
+
+		ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+
+		t.Cleanup(func() {
+			_ = ln.Close()
+		})
+
+		errch := make(chan error)
+		go func() {
+			errch <- server.Serve(context.Background(), ln)
+		}()
+
+		_, err = smtp.Dial(ln.Addr().String())
+		require.Error(t, err)
+	})
 }
