@@ -15,6 +15,8 @@ import (
 )
 
 // Server defines the parameters for running the SMTP server
+//
+//nolint:govet
 type Server struct {
 	Hostname       string // Server hostname. (default: "localhost.localdomain")
 	WelcomeMessage string // Initial server banner. (default: "<hostname> ESMTP ready.")
@@ -55,11 +57,11 @@ type Server struct {
 
 	// mu guards doneChan and makes closing it and listener atomic from
 	// perspective of Serve()
-	mu sync.Mutex
-	doneChan chan struct{}
-	listener *net.Listener
-	waitgrp sync.WaitGroup
-	inShutdown atomicBool // true when server is in shutdown
+	mu         sync.Mutex
+	doneChan   chan struct{}
+	listener   *net.Listener
+	waitgrp    sync.WaitGroup
+	inShutdown atomic.Bool // true when server is in shutdown
 }
 
 // Protocol represents the protocol used in the SMTP session
@@ -75,19 +77,19 @@ const (
 
 // Peer represents the client connecting to the server
 type Peer struct {
+	Addr       net.Addr             // Network address
+	TLS        *tls.ConnectionState // TLS Connection details, if on TLS
 	HeloName   string               // Server name used in HELO/EHLO command
 	Username   string               // Username from authentication, if authenticated
 	Password   string               // Password from authentication, if authenticated
 	Protocol   Protocol             // Protocol used, SMTP or ESMTP
 	ServerName string               // A copy of Server.Hostname
-	Addr       net.Addr             // Network address
-	TLS        *tls.ConnectionState // TLS Connection details, if on TLS
 }
 
 // Error represents an Error reported in the SMTP session.
 type Error struct {
-	Code    int    // The integer error code
 	Message string // The error message
+	Code    int    // The integer error code
 }
 
 // Error returns a string representation of the SMTP error
@@ -100,7 +102,6 @@ var ErrServerClosed = errors.New("smtp: Server closed")
 type session struct {
 	server *Server
 
-	peer     Peer
 	envelope *Envelope
 
 	conn net.Conn
@@ -109,12 +110,13 @@ type session struct {
 	writer  *bufio.Writer
 	scanner *bufio.Scanner
 
+	peer Peer
+
 	tls bool
 }
 
-func (srv *Server) newSession(c net.Conn) (s *session) {
-
-	s = &session{
+func (srv *Server) newSession(c net.Conn) *session {
+	s := &session{
 		server: srv,
 		conn:   c,
 		reader: bufio.NewReader(c),
@@ -136,15 +138,14 @@ func (srv *Server) newSession(c net.Conn) (s *session) {
 	if s.tls {
 		// run handshake otherwise it's done when we first
 		// read/write and connection state will be invalid
-		tlsConn.Handshake()
+		_ = tlsConn.Handshake()
 		state := tlsConn.ConnectionState()
 		s.peer.TLS = &state
 	}
 
 	s.scanner = bufio.NewScanner(s.reader)
 
-	return
-
+	return s
 }
 
 // ListenAndServe starts the SMTP server and listens on the address provided
@@ -190,7 +191,10 @@ func (srv *Server) Serve(l net.Listener) error {
 			default:
 			}
 
-			if ne, ok := e.(net.Error); ok && ne.Temporary() {
+			var ne net.Error
+			//nolint:staticcheck
+			if ok := errors.As(e, &ne); ok && ne.Temporary() {
+				// TODO: Exponential backoff
 				time.Sleep(time.Second)
 				continue
 			}
@@ -223,19 +227,19 @@ func (srv *Server) Serve(l net.Listener) error {
 // to complete. If wait is false, Wait must be called afterwards.
 func (srv *Server) Shutdown(wait bool) error {
 	var lnerr error
-	srv.inShutdown.setTrue()
+	srv.inShutdown.Store(true)
 
 	// First close the listener
 	srv.mu.Lock()
 	if srv.listener != nil {
-		lnerr = (*srv.listener).Close();
+		lnerr = (*srv.listener).Close()
 	}
 	srv.closeDoneChanLocked()
 	srv.mu.Unlock()
 
 	// Now wait for all client connections to close
 	if wait {
-		srv.Wait()
+		_ = srv.Wait()
 	}
 
 	return lnerr
@@ -254,7 +258,7 @@ func (srv *Server) Wait() error {
 
 // Address returns the listening address of the server
 func (srv *Server) Address() net.Addr {
-	return (*srv.listener).Addr();
+	return (*srv.listener).Addr()
 }
 
 func (srv *Server) configureDefaults() {
@@ -315,13 +319,13 @@ func (session *session) serve() {
 
 		err := session.scanner.Err()
 
-		if err == bufio.ErrTooLong {
+		if errors.Is(err, bufio.ErrTooLong) {
 
 			session.reply(500, "Line too long")
 
 			// Advance reader to the next newline
 
-			session.reader.ReadString('\n')
+			_, _ = session.reader.ReadString('\n')
 			session.scanner = bufio.NewScanner(session.reader)
 
 			// Reset and have the client start over.
@@ -367,13 +371,14 @@ func (session *session) reply(code int, message string) {
 }
 
 func (session *session) flush() {
-	session.conn.SetWriteDeadline(time.Now().Add(session.server.WriteTimeout))
+	_ = session.conn.SetWriteDeadline(time.Now().Add(session.server.WriteTimeout))
 	session.writer.Flush()
-	session.conn.SetReadDeadline(time.Now().Add(session.server.ReadTimeout))
+	_ = session.conn.SetReadDeadline(time.Now().Add(session.server.ReadTimeout))
 }
 
 func (session *session) error(err error) {
-	if smtpdError, ok := err.(Error); ok {
+	var smtpdError Error
+	if errors.As(err, &smtpdError) {
 		session.reply(smtpdError.Code, smtpdError.Message)
 	} else {
 		session.reply(502, fmt.Sprintf("%s", err))
@@ -384,7 +389,7 @@ func (session *session) logf(format string, v ...interface{}) {
 	if session.server.ProtocolLogger == nil {
 		return
 	}
-	session.server.ProtocolLogger.Output(2, fmt.Sprintf(
+	_ = session.server.ProtocolLogger.Output(2, fmt.Sprintf(
 		"%s [peer:%s]",
 		fmt.Sprintf(format, v...),
 		session.peer.Addr,
@@ -433,34 +438,33 @@ func (session *session) close() {
 	session.conn.Close()
 }
 
-
 // From net/http/server.go
 
-func (s *Server) shuttingDown() bool {
-	return s.inShutdown.isSet()
+func (srv *Server) shuttingDown() bool {
+	return srv.inShutdown.Load()
 }
 
-func (s *Server) getDoneChan() <-chan struct{} {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.getDoneChanLocked()
+func (srv *Server) getDoneChan() <-chan struct{} {
+	srv.mu.Lock()
+	defer srv.mu.Unlock()
+	return srv.getDoneChanLocked()
 }
 
-func (s *Server) getDoneChanLocked() chan struct{} {
-	if s.doneChan == nil {
-		s.doneChan = make(chan struct{})
+func (srv *Server) getDoneChanLocked() chan struct{} {
+	if srv.doneChan == nil {
+		srv.doneChan = make(chan struct{})
 	}
-	return s.doneChan
+	return srv.doneChan
 }
 
-func (s *Server) closeDoneChanLocked() {
-	ch := s.getDoneChanLocked()
+func (srv *Server) closeDoneChanLocked() {
+	ch := srv.getDoneChanLocked()
 	select {
 	case <-ch:
 		// Already closed. Don't close again.
 	default:
 		// Safe to close here. We're the only closer, guarded
-		// by s.mu.
+		// by srv.mu.
 		close(ch)
 	}
 }
@@ -469,8 +473,8 @@ func (s *Server) closeDoneChanLocked() {
 // multiple Close calls.
 type onceCloseListener struct {
 	net.Listener
-	once     sync.Once
 	closeErr error
+	once     sync.Once
 }
 
 func (oc *onceCloseListener) Close() error {
@@ -479,9 +483,3 @@ func (oc *onceCloseListener) Close() error {
 }
 
 func (oc *onceCloseListener) close() { oc.closeErr = oc.Listener.Close() }
-
-type atomicBool int32
-
-func (b *atomicBool) isSet() bool { return atomic.LoadInt32((*int32)(b)) != 0 }
-func (b *atomicBool) setTrue()    { atomic.StoreInt32((*int32)(b), 1) }
-func (b *atomicBool) setFalse()   { atomic.StoreInt32((*int32)(b), 0) }

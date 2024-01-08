@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"github.com/grafana/smtprelay/internal/smtpd"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var localhostCert = []byte(`-----BEGIN CERTIFICATE-----
@@ -117,14 +119,13 @@ func cmd(c *textproto.Conn, expectedCode int, format string, args ...interface{}
 }
 
 func runserver(t *testing.T, server *smtpd.Server) (addr string, closer func()) {
+	t.Helper()
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("Listen failed: %v", err)
-	}
+	require.NoError(t, err)
 
 	go func() {
-		server.Serve(ln)
+		_ = server.Serve(ln)
 	}()
 
 	done := make(chan bool)
@@ -137,98 +138,75 @@ func runserver(t *testing.T, server *smtpd.Server) (addr string, closer func()) 
 	return ln.Addr().String(), func() {
 		done <- true
 	}
-
 }
 
 func runsslserver(t *testing.T, server *smtpd.Server) (addr string, closer func()) {
+	t.Helper()
 
 	cert, err := tls.X509KeyPair(localhostCert, localhostKey)
-	if err != nil {
-		t.Fatalf("Cert load failed: %v", err)
-	}
+	require.NoError(t, err)
 
 	server.TLSConfig = &tls.Config{
+		MinVersion:   tls.VersionTLS12,
 		Certificates: []tls.Certificate{cert},
 	}
 
 	return runserver(t, server)
-
 }
 
 func TestSMTP(t *testing.T) {
-
 	addr, closer := runserver(t, &smtpd.Server{
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
 	defer closer()
 
 	c, err := smtp.Dial(addr)
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := c.Hello("localhost"); err != nil {
-		t.Fatalf("HELO failed: %v", err)
-	}
+	err = c.Hello("localhost")
+	require.NoError(t, err)
 
-	if supported, _ := c.Extension("AUTH"); supported {
-		t.Fatal("AUTH supported before TLS")
-	}
+	supported, _ := c.Extension("AUTH")
+	require.False(t, supported, "AUTH supported before TLS")
 
-	if supported, _ := c.Extension("8BITMIME"); !supported {
-		t.Fatal("8BITMIME not supported")
-	}
+	supported, _ = c.Extension("8BITMIME")
+	require.True(t, supported, "8BITMIME not supported")
 
-	if supported, _ := c.Extension("STARTTLS"); supported {
-		t.Fatal("STARTTLS supported")
-	}
+	supported, _ = c.Extension("STARTTLS")
+	require.False(t, supported, "STARTTLS supported")
 
-	if err := c.Mail("sender@example.org"); err != nil {
-		t.Fatalf("Mail failed: %v", err)
-	}
+	err = c.Mail("sender@example.org")
+	require.NoError(t, err)
 
-	if err := c.Rcpt("recipient@example.net"); err != nil {
-		t.Fatalf("Rcpt failed: %v", err)
-	}
+	err = c.Rcpt("recipient@example.net")
+	require.NoError(t, err)
 
-	if err := c.Rcpt("recipient2@example.net"); err != nil {
-		t.Fatalf("Rcpt2 failed: %v", err)
-	}
+	err = c.Rcpt("recipient2@example.net")
+	require.NoError(t, err)
 
 	wc, err := c.Data()
-	if err != nil {
-		t.Fatalf("Data failed: %v", err)
-	}
+	require.NoError(t, err)
 
 	_, err = fmt.Fprintf(wc, "This is the email body")
-	if err != nil {
-		t.Fatalf("Data body failed: %v", err)
-	}
+	require.NoError(t, err)
 
 	err = wc.Close()
-	if err != nil {
-		t.Fatalf("Data close failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := c.Reset(); err != nil {
-		t.Fatalf("Reset failed: %v", err)
-	}
+	err = c.Reset()
+	require.NoError(t, err)
 
-	if err := c.Verify("foobar@example.net"); err == nil {
-		t.Fatal("Unexpected support for VRFY")
-	}
+	err = c.Verify("foobar@example.net")
+	require.Error(t, err)
 
-	if err := cmd(c.Text, 250, "NOOP"); err != nil {
-		t.Fatalf("NOOP failed: %v", err)
-	}
+	err = cmd(c.Text, 250, "NOOP")
+	require.NoError(t, err)
 
-	if err := c.Quit(); err != nil {
-		t.Fatalf("Quit failed: %v", err)
-	}
+	err = c.Quit()
+	require.NoError(t, err)
 }
 
 func TestListenAndServe(t *testing.T) {
-
 	addr, closer := runserver(t, &smtpd.Server{})
 	closer()
 
@@ -237,24 +215,19 @@ func TestListenAndServe(t *testing.T) {
 	}
 
 	go func() {
-		server.ListenAndServe(addr)
+		_ = server.ListenAndServe(addr)
 	}()
 
 	time.Sleep(100 * time.Millisecond)
 
 	c, err := smtp.Dial(addr)
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := c.Quit(); err != nil {
-		t.Fatalf("Quit failed: %v", err)
-	}
-
+	err = c.Quit()
+	require.NoError(t, err)
 }
 
 func TestSTARTTLS(t *testing.T) {
-
 	addr, closer := runsslserver(t, &smtpd.Server{
 		Authenticator:  func(peer smtpd.Peer, username, password string) error { return nil },
 		ForceTLS:       true,
@@ -264,84 +237,66 @@ func TestSTARTTLS(t *testing.T) {
 	defer closer()
 
 	c, err := smtp.Dial(addr)
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
+	require.NoError(t, err)
+
+	supported, _ := c.Extension("AUTH")
+	require.False(t, supported, "AUTH supported before TLS")
+
+	err = c.Mail("sender@example.org")
+	require.Error(t, err, "Mail worked before TLS with ForceTLS")
+
+	err = cmd(c.Text, 220, "STARTTLS")
+	require.NoError(t, err)
+
+	err = cmd(c.Text, 250, "foobar")
+	require.Error(t, err, "STARTTLS didn't fail with invalid handshake")
+
+	testConfig := &tls.Config{
+		//nolint:gosec
+		InsecureSkipVerify: true,
 	}
 
-	if supported, _ := c.Extension("AUTH"); supported {
-		t.Fatal("AUTH supported before TLS")
-	}
+	err = c.StartTLS(testConfig)
+	require.NoError(t, err)
 
-	if err := c.Mail("sender@example.org"); err == nil {
-		t.Fatal("Mail workded before TLS with ForceTLS")
-	}
+	err = c.StartTLS(testConfig)
+	require.Error(t, err, "STARTTLS worked twice")
 
-	if err := cmd(c.Text, 220, "STARTTLS"); err != nil {
-		t.Fatalf("STARTTLS failed: %v", err)
-	}
+	supported, _ = c.Extension("AUTH")
+	require.True(t, supported, "AUTH not supported after TLS")
 
-	if err := cmd(c.Text, 250, "foobar"); err == nil {
-		t.Fatal("STARTTLS didn't fail with invalid handshake")
-	}
+	_, mechs := c.Extension("AUTH")
+	assert.Contains(t, mechs, "PLAIN", "PLAIN AUTH not supported after TLS")
 
-	if err := c.StartTLS(&tls.Config{InsecureSkipVerify: true}); err != nil {
-		t.Fatalf("STARTTLS failed: %v", err)
-	}
+	_, mechs = c.Extension("AUTH")
+	assert.Contains(t, mechs, "LOGIN", "LOGIN AUTH not supported after TLS")
 
-	if err := c.StartTLS(&tls.Config{InsecureSkipVerify: true}); err == nil {
-		t.Fatal("STARTTLS worked twice")
-	}
+	err = c.Auth(smtp.PlainAuth("foo", "foo", "bar", "127.0.0.1"))
+	require.NoError(t, err)
 
-	if supported, _ := c.Extension("AUTH"); !supported {
-		t.Fatal("AUTH not supported after TLS")
-	}
+	err = c.Mail("sender@example.org")
+	require.NoError(t, err)
 
-	if _, mechs := c.Extension("AUTH"); !strings.Contains(mechs, "PLAIN") {
-		t.Fatal("PLAIN AUTH not supported after TLS")
-	}
+	err = c.Rcpt("recipient@example.net")
+	require.NoError(t, err)
 
-	if _, mechs := c.Extension("AUTH"); !strings.Contains(mechs, "LOGIN") {
-		t.Fatal("LOGIN AUTH not supported after TLS")
-	}
-
-	if err := c.Auth(smtp.PlainAuth("foo", "foo", "bar", "127.0.0.1")); err != nil {
-		t.Fatalf("Auth failed: %v", err)
-	}
-
-	if err := c.Mail("sender@example.org"); err != nil {
-		t.Fatalf("Mail failed: %v", err)
-	}
-
-	if err := c.Rcpt("recipient@example.net"); err != nil {
-		t.Fatalf("Rcpt failed: %v", err)
-	}
-
-	if err := c.Rcpt("recipient2@example.net"); err != nil {
-		t.Fatalf("Rcpt2 failed: %v", err)
-	}
+	err = c.Rcpt("recipient2@example.net")
+	require.NoError(t, err)
 
 	wc, err := c.Data()
-	if err != nil {
-		t.Fatalf("Data failed: %v", err)
-	}
+	require.NoError(t, err)
 
 	_, err = fmt.Fprintf(wc, "This is the email body")
-	if err != nil {
-		t.Fatalf("Data body failed: %v", err)
-	}
+	require.NoError(t, err)
 
 	err = wc.Close()
-	if err != nil {
-		t.Fatalf("Data close failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := c.Quit(); err != nil {
-		t.Fatalf("Quit failed: %v", err)
-	}
+	err = c.Quit()
+	require.NoError(t, err)
 }
 
 func TestAuthRejection(t *testing.T) {
-
 	addr, closer := runsslserver(t, &smtpd.Server{
 		Authenticator: func(peer smtpd.Peer, username, password string) error {
 			return smtpd.Error{Code: 550, Message: "Denied"}
@@ -349,50 +304,38 @@ func TestAuthRejection(t *testing.T) {
 		ForceTLS:       true,
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
-
 	defer closer()
 
 	c, err := smtp.Dial(addr)
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := c.StartTLS(&tls.Config{InsecureSkipVerify: true}); err != nil {
-		t.Fatalf("STARTTLS failed: %v", err)
-	}
+	//nolint:gosec
+	err = c.StartTLS(&tls.Config{InsecureSkipVerify: true})
+	require.NoError(t, err)
 
-	if err := c.Auth(smtp.PlainAuth("foo", "foo", "bar", "127.0.0.1")); err == nil {
-		t.Fatal("Auth worked despite rejection")
-	}
-
+	err = c.Auth(smtp.PlainAuth("foo", "foo", "bar", "127.0.0.1"))
+	require.Error(t, err, "Auth worked despite rejection")
 }
 
 func TestAuthNotSupported(t *testing.T) {
-
 	addr, closer := runsslserver(t, &smtpd.Server{
 		ForceTLS:       true,
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
-
 	defer closer()
 
 	c, err := smtp.Dial(addr)
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := c.StartTLS(&tls.Config{InsecureSkipVerify: true}); err != nil {
-		t.Fatalf("STARTTLS failed: %v", err)
-	}
+	//nolint:gosec
+	err = c.StartTLS(&tls.Config{InsecureSkipVerify: true})
+	require.NoError(t, err)
 
-	if err := c.Auth(smtp.PlainAuth("foo", "foo", "bar", "127.0.0.1")); err == nil {
-		t.Fatal("Auth worked despite no authenticator")
-	}
-
+	err = c.Auth(smtp.PlainAuth("foo", "foo", "bar", "127.0.0.1"))
+	require.Error(t, err, "Auth worked despite no authenticator")
 }
 
 func TestAuthBypass(t *testing.T) {
-
 	addr, closer := runsslserver(t, &smtpd.Server{
 		Authenticator: func(peer smtpd.Peer, username, password string) error {
 			return smtpd.Error{Code: 550, Message: "Denied"}
@@ -400,65 +343,49 @@ func TestAuthBypass(t *testing.T) {
 		ForceTLS:       true,
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
-
 	defer closer()
 
 	c, err := smtp.Dial(addr)
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := c.StartTLS(&tls.Config{InsecureSkipVerify: true}); err != nil {
-		t.Fatalf("STARTTLS failed: %v", err)
-	}
+	//nolint:gosec
+	err = c.StartTLS(&tls.Config{InsecureSkipVerify: true})
+	require.NoError(t, err)
 
-	if err := c.Mail("sender@example.org"); err == nil {
-		t.Fatal("Unexpected MAIL success")
-	}
-
+	err = c.Mail("sender@example.org")
+	require.Error(t, err, "MAIL succeeded despite AuthBypass")
 }
 
 func TestConnectionCheck(t *testing.T) {
-
 	addr, closer := runserver(t, &smtpd.Server{
 		ConnectionChecker: func(peer smtpd.Peer) error {
 			return smtpd.Error{Code: 552, Message: "Denied"}
 		},
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
-
 	defer closer()
 
-	if _, err := smtp.Dial(addr); err == nil {
-		t.Fatal("Dial succeeded despite ConnectionCheck")
-	}
-
+	_, err := smtp.Dial(addr)
+	require.Error(t, err, "Dial succeeded despite ConnectionCheck")
 }
 
 func TestConnectionCheckSimpleError(t *testing.T) {
-
 	addr, closer := runserver(t, &smtpd.Server{
 		ConnectionChecker: func(peer smtpd.Peer) error {
 			return errors.New("Denied")
 		},
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
-
 	defer closer()
 
-	if _, err := smtp.Dial(addr); err == nil {
-		t.Fatal("Dial succeeded despite ConnectionCheck")
-	}
-
+	_, err := smtp.Dial(addr)
+	require.Error(t, err, "Dial succeeded despite ConnectionCheck")
 }
 
 func TestHELOCheck(t *testing.T) {
-
 	addr, closer := runserver(t, &smtpd.Server{
 		HeloChecker: func(peer smtpd.Peer, name string) error {
-			if name != "foobar.local" {
-				t.Fatal("Wrong HELO name")
-			}
+			require.Equal(t, "foobar.local", name)
 			return smtpd.Error{Code: 552, Message: "Denied"}
 		},
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
@@ -467,123 +394,85 @@ func TestHELOCheck(t *testing.T) {
 	defer closer()
 
 	c, err := smtp.Dial(addr)
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := c.Hello("foobar.local"); err == nil {
-		t.Fatal("Unexpected HELO success")
-	}
-
+	err = c.Hello("foobar.local")
+	require.Error(t, err, "HELO succeeded despite HeloCheck")
 }
 
 func TestSenderCheck(t *testing.T) {
-
 	addr, closer := runserver(t, &smtpd.Server{
 		SenderChecker: func(peer smtpd.Peer, addr string) error {
 			return smtpd.Error{Code: 552, Message: "Denied"}
 		},
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
-
 	defer closer()
 
 	c, err := smtp.Dial(addr)
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := c.Mail("sender@example.org"); err == nil {
-		t.Fatal("Unexpected MAIL success")
-	}
-
+	err = c.Mail("sender@example.org")
+	require.Error(t, err, "MAIL succeeded despite SenderCheck")
 }
 
 func TestRecipientCheck(t *testing.T) {
-
 	addr, closer := runserver(t, &smtpd.Server{
 		RecipientChecker: func(peer smtpd.Peer, addr string) error {
 			return smtpd.Error{Code: 552, Message: "Denied"}
 		},
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
-
 	defer closer()
 
 	c, err := smtp.Dial(addr)
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := c.Mail("sender@example.org"); err != nil {
-		t.Fatalf("Mail failed: %v", err)
-	}
+	err = c.Mail("sender@example.org")
+	require.NoError(t, err)
 
-	if err := c.Rcpt("recipient@example.net"); err == nil {
-		t.Fatal("Unexpected RCPT success")
-	}
-
+	err = c.Rcpt("recipient@example.net")
+	require.Error(t, err, "RCPT succeeded despite RecipientCheck")
 }
 
 func TestMaxMessageSize(t *testing.T) {
-
 	addr, closer := runserver(t, &smtpd.Server{
 		MaxMessageSize: 5,
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
-
 	defer closer()
 
 	c, err := smtp.Dial(addr)
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := c.Mail("sender@example.org"); err != nil {
-		t.Fatalf("MAIL failed: %v", err)
-	}
+	err = c.Mail("sender@example.org")
+	require.NoError(t, err)
 
-	if err := c.Rcpt("recipient@example.net"); err != nil {
-		t.Fatalf("RCPT failed: %v", err)
-	}
+	err = c.Rcpt("recipient@example.net")
+	require.NoError(t, err)
 
 	wc, err := c.Data()
-	if err != nil {
-		t.Fatalf("Data failed: %v", err)
-	}
+	require.NoError(t, err)
 
 	_, err = fmt.Fprintf(wc, "This is the email body")
-	if err != nil {
-		t.Fatalf("Data body failed: %v", err)
-	}
+	require.NoError(t, err)
 
 	err = wc.Close()
-	if err == nil {
-		t.Fatal("Allowed message larger than 5 bytes to pass.")
-	}
+	require.Error(t, err, "Allowed message larger than 5 bytes to pass.")
 
-	if err := c.Quit(); err != nil {
-		t.Fatalf("QUIT failed: %v", err)
-	}
-
+	err = c.Quit()
+	require.NoError(t, err)
 }
 
 func TestHandler(t *testing.T) {
 
 	addr, closer := runserver(t, &smtpd.Server{
 		Handler: func(peer smtpd.Peer, env smtpd.Envelope) error {
-			if env.Sender != "sender@example.org" {
-				t.Fatalf("Unknown sender: %v", env.Sender)
-			}
-			if len(env.Recipients) != 1 {
-				t.Fatalf("Too many recipients: %d", len(env.Recipients))
-			}
-			if env.Recipients[0] != "recipient@example.net" {
-				t.Fatalf("Unknown recipient: %v", env.Recipients[0])
-			}
-			if string(env.Data) != "This is the email body\n" {
-				t.Fatalf("Wrong message body: %v", string(env.Data))
-			}
+			assert.Equal(t, "sender@example.org", env.Sender)
+			assert.Len(t, env.Recipients, 1)
+			assert.Equal(t, "recipient@example.net", env.Recipients[0])
+			assert.Equal(t, "This is the email body\n", string(env.Data))
+
 			return nil
 		},
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
@@ -592,37 +481,25 @@ func TestHandler(t *testing.T) {
 	defer closer()
 
 	c, err := smtp.Dial(addr)
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := c.Mail("sender@example.org"); err != nil {
-		t.Fatalf("MAIL failed: %v", err)
-	}
+	err = c.Mail("sender@example.org")
+	require.NoError(t, err)
 
-	if err := c.Rcpt("recipient@example.net"); err != nil {
-		t.Fatalf("RCPT failed: %v", err)
-	}
+	err = c.Rcpt("recipient@example.net")
+	require.NoError(t, err)
 
 	wc, err := c.Data()
-	if err != nil {
-		t.Fatalf("Data failed: %v", err)
-	}
+	require.NoError(t, err)
 
 	_, err = fmt.Fprintf(wc, "This is the email body")
-	if err != nil {
-		t.Fatalf("Data body failed: %v", err)
-	}
+	require.NoError(t, err)
 
 	err = wc.Close()
-	if err != nil {
-		t.Fatalf("Data close failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := c.Quit(); err != nil {
-		t.Fatalf("QUIT failed: %v", err)
-	}
-
+	err = c.Quit()
+	require.NoError(t, err)
 }
 
 func TestRejectHandler(t *testing.T) {
@@ -637,192 +514,135 @@ func TestRejectHandler(t *testing.T) {
 	defer closer()
 
 	c, err := smtp.Dial(addr)
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := c.Mail("sender@example.org"); err != nil {
-		t.Fatalf("MAIL failed: %v", err)
-	}
+	err = c.Mail("sender@example.org")
+	require.NoError(t, err)
 
-	if err := c.Rcpt("recipient@example.net"); err != nil {
-		t.Fatalf("RCPT failed: %v", err)
-	}
+	err = c.Rcpt("recipient@example.net")
+	require.NoError(t, err)
 
 	wc, err := c.Data()
-	if err != nil {
-		t.Fatalf("Data failed: %v", err)
-	}
+	require.NoError(t, err)
 
 	_, err = fmt.Fprintf(wc, "This is the email body")
-	if err != nil {
-		t.Fatalf("Data body failed: %v", err)
-	}
+	require.NoError(t, err)
 
 	err = wc.Close()
-	if err == nil {
-		t.Fatal("Unexpected accept of data")
-	}
+	require.Error(t, err, "Unexpected accept of data")
 
-	if err := c.Quit(); err != nil {
-		t.Fatalf("QUIT failed: %v", err)
-	}
-
+	err = c.Quit()
+	require.NoError(t, err)
 }
 
 func TestMaxConnections(t *testing.T) {
-
 	addr, closer := runserver(t, &smtpd.Server{
 		MaxConnections: 1,
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
-
 	defer closer()
 
 	c1, err := smtp.Dial(addr)
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
-	}
+	require.NoError(t, err)
 
 	_, err = smtp.Dial(addr)
-	if err == nil {
-		t.Fatal("Dial succeeded despite MaxConnections = 1")
-	}
+	require.Error(t, err, "Dial succeeded despite MaxConnections = 1")
 
 	c1.Close()
 }
 
 func TestNoMaxConnections(t *testing.T) {
-
 	addr, closer := runserver(t, &smtpd.Server{
 		MaxConnections: -1,
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
-
 	defer closer()
 
 	c1, err := smtp.Dial(addr)
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
-	}
+	require.NoError(t, err)
 
 	c1.Close()
 }
 
 func TestMaxRecipients(t *testing.T) {
-
 	addr, closer := runserver(t, &smtpd.Server{
 		MaxRecipients:  1,
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
-
 	defer closer()
 
 	c, err := smtp.Dial(addr)
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := c.Mail("sender@example.org"); err != nil {
-		t.Fatalf("MAIL failed: %v", err)
-	}
+	err = c.Mail("sender@example.org")
+	require.NoError(t, err)
 
-	if err := c.Rcpt("recipient@example.net"); err != nil {
-		t.Fatalf("RCPT failed: %v", err)
-	}
+	err = c.Rcpt("recipient@example.net")
+	require.NoError(t, err)
 
-	if err := c.Rcpt("recipient@example.net"); err == nil {
-		t.Fatal("RCPT succeeded despite MaxRecipients = 1")
-	}
+	err = c.Rcpt("recipient@example.net")
+	require.Error(t, err, "RCPT succeeded despite MaxRecipients = 1")
 
-	if err := c.Quit(); err != nil {
-		t.Fatalf("QUIT failed: %v", err)
-	}
-
+	err = c.Quit()
+	require.NoError(t, err)
 }
 
 func TestInvalidHelo(t *testing.T) {
-
 	addr, closer := runserver(t, &smtpd.Server{
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
-
 	defer closer()
 
 	c, err := smtp.Dial(addr)
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := c.Hello(""); err == nil {
-		t.Fatal("Unexpected HELO success")
-	}
-
+	err = c.Hello("")
+	require.Error(t, err, "HELO succeeded despite empty name")
 }
 
 func TestInvalidSender(t *testing.T) {
-
 	addr, closer := runserver(t, &smtpd.Server{
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
-
 	defer closer()
 
 	c, err := smtp.Dial(addr)
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := c.Mail("invalid@@example.org"); err == nil {
-		t.Fatal("Unexpected MAIL success")
-	}
-
+	err = c.Mail("invalid@@example.org")
+	require.Error(t, err, "MAIL succeeded despite invalid address")
 }
 
 func TestInvalidRecipient(t *testing.T) {
-
 	addr, closer := runserver(t, &smtpd.Server{
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
-
 	defer closer()
 
 	c, err := smtp.Dial(addr)
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := c.Mail("sender@example.org"); err != nil {
-		t.Fatalf("Mail failed: %v", err)
-	}
+	err = c.Mail("sender@example.org")
+	require.NoError(t, err)
 
-	if err := c.Rcpt("invalid@@example.org"); err == nil {
-		t.Fatal("Unexpected RCPT success")
-	}
-
+	err = c.Rcpt("invalid@@example.org")
+	require.Error(t, err, "RCPT succeeded despite invalid address")
 }
 
 func TestRCPTbeforeMAIL(t *testing.T) {
-
 	addr, closer := runserver(t, &smtpd.Server{
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
-
 	defer closer()
 
 	c, err := smtp.Dial(addr)
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := c.Rcpt("recipient@example.net"); err == nil {
-		t.Fatal("Unexpected RCPT success")
-	}
-
+	err = c.Rcpt("recipient@example.net")
+	require.Error(t, err, "RCPT succeeded despite no MAIL")
 }
 
 func TestDATAbeforeRCPT(t *testing.T) {
-
 	addr, closer := runserver(t, &smtpd.Server{
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
@@ -830,26 +650,19 @@ func TestDATAbeforeRCPT(t *testing.T) {
 	defer closer()
 
 	c, err := smtp.Dial(addr)
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := c.Mail("sender@example.org"); err != nil {
-		t.Fatalf("MAIL failed: %v", err)
-	}
+	err = c.Mail("sender@example.org")
+	require.NoError(t, err)
 
-	if _, err := c.Data(); err == nil {
-		t.Fatal("Data accepted despite no recipients")
-	}
+	_, err = c.Data()
+	require.Error(t, err, "Data accepted despite no recipients")
 
-	if err := c.Quit(); err != nil {
-		t.Fatalf("QUIT failed: %v", err)
-	}
-
+	err = c.Quit()
+	require.NoError(t, err)
 }
 
 func TestInterruptedDATA(t *testing.T) {
-
 	addr, closer := runserver(t, &smtpd.Server{
 		Handler: func(peer smtpd.Peer, env smtpd.Envelope) error {
 			t.Fatal("Accepted DATA despite disconnection")
@@ -861,211 +674,155 @@ func TestInterruptedDATA(t *testing.T) {
 	defer closer()
 
 	c, err := smtp.Dial(addr)
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := c.Mail("sender@example.org"); err != nil {
-		t.Fatalf("MAIL failed: %v", err)
-	}
+	err = c.Mail("sender@example.org")
+	require.NoError(t, err)
 
-	if err := c.Rcpt("recipient@example.net"); err != nil {
-		t.Fatalf("RCPT failed: %v", err)
-	}
+	err = c.Rcpt("recipient@example.net")
+	require.NoError(t, err)
 
 	wc, err := c.Data()
-	if err != nil {
-		t.Fatalf("Data failed: %v", err)
-	}
+	require.NoError(t, err)
 
 	_, err = fmt.Fprintf(wc, "This is the email body")
-	if err != nil {
-		t.Fatalf("Data body failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	c.Close()
-
+	_ = c.Close()
 }
 
 func TestTimeoutClose(t *testing.T) {
-
 	addr, closer := runserver(t, &smtpd.Server{
 		MaxConnections: 1,
-		ReadTimeout:    time.Second,
-		WriteTimeout:   time.Second,
+		ReadTimeout:    1000 * time.Millisecond,
+		WriteTimeout:   1000 * time.Millisecond,
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
 
 	defer closer()
 
 	c1, err := smtp.Dial(addr)
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	time.Sleep(time.Second * 2)
+	// TODO: reduce this after fixing Serve to do an exponential backoff instead
+	// of sleeping for a full second
+	time.Sleep(2000 * time.Millisecond)
 
 	c2, err := smtp.Dial(addr)
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := c1.Mail("sender@example.org"); err == nil {
-		t.Fatal("MAIL succeeded despite being timed out.")
-	}
+	err = c1.Mail("sender@example.org")
+	require.Error(t, err, "MAIL succeeded despite being timed out.")
 
-	if err := c2.Mail("sender@example.org"); err != nil {
-		t.Fatalf("MAIL failed: %v", err)
-	}
+	err = c2.Mail("sender@example.org")
+	require.NoError(t, err)
 
-	if err := c2.Quit(); err != nil {
-		t.Fatalf("Quit failed: %v", err)
-	}
+	err = c2.Quit()
+	require.NoError(t, err)
 
 	c2.Close()
 }
 
 func TestTLSTimeout(t *testing.T) {
-
 	addr, closer := runsslserver(t, &smtpd.Server{
-		ReadTimeout:    time.Second * 2,
-		WriteTimeout:   time.Second * 2,
+		ReadTimeout:    200 * time.Millisecond,
+		WriteTimeout:   200 * time.Millisecond,
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
 
 	defer closer()
 
 	c, err := smtp.Dial(addr)
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := c.StartTLS(&tls.Config{InsecureSkipVerify: true}); err != nil {
-		t.Fatalf("STARTTLS failed: %v", err)
-	}
+	//nolint:gosec
+	err = c.StartTLS(&tls.Config{InsecureSkipVerify: true})
+	require.NoError(t, err)
 
-	time.Sleep(time.Second)
+	time.Sleep(100 * time.Millisecond)
 
-	if err := c.Mail("sender@example.org"); err != nil {
-		t.Fatalf("MAIL failed: %v", err)
-	}
+	err = c.Mail("sender@example.org")
+	require.NoError(t, err)
 
-	time.Sleep(time.Second)
+	time.Sleep(100 * time.Millisecond)
 
-	if err := c.Rcpt("recipient@example.net"); err != nil {
-		t.Fatalf("RCPT failed: %v", err)
-	}
+	err = c.Rcpt("recipient@example.net")
+	require.NoError(t, err)
 
-	time.Sleep(time.Second)
+	time.Sleep(100 * time.Millisecond)
 
-	if err := c.Rcpt("recipient@example.net"); err != nil {
-		t.Fatalf("RCPT failed: %v", err)
-	}
+	err = c.Rcpt("recipient@example.net")
+	require.NoError(t, err)
 
-	time.Sleep(time.Second)
+	time.Sleep(100 * time.Millisecond)
 
-	if err := c.Quit(); err != nil {
-		t.Fatalf("Quit failed: %v", err)
-	}
-
+	err = c.Quit()
+	require.NoError(t, err)
 }
 
 func TestLongLine(t *testing.T) {
-
 	addr, closer := runserver(t, &smtpd.Server{
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
-
 	defer closer()
 
 	c, err := smtp.Dial(addr)
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := c.Mail(fmt.Sprintf("%s@example.org", strings.Repeat("x", 65*1024))); err == nil {
-		t.Fatalf("MAIL failed: %v", err)
-	}
+	err = c.Mail(fmt.Sprintf("%s@example.org", strings.Repeat("x", 65*1024)))
+	require.Error(t, err)
 
-	if err := c.Quit(); err != nil {
-		t.Fatalf("Quit failed: %v", err)
-	}
-
+	err = c.Quit()
+	require.NoError(t, err)
 }
 
 func TestXCLIENT(t *testing.T) {
-
 	addr, closer := runserver(t, &smtpd.Server{
 		EnableXCLIENT: true,
 		SenderChecker: func(peer smtpd.Peer, addr string) error {
-			if peer.HeloName != "new.example.net" {
-				t.Fatalf("Didn't override HELO name: %v", peer.HeloName)
-			}
-			if peer.Addr.String() != "42.42.42.42:4242" {
-				t.Fatalf("Didn't override IP/Port: %v", peer.Addr)
-			}
-			if peer.Username != "newusername" {
-				t.Fatalf("Didn't override username: %v", peer.Username)
-			}
-			if peer.Protocol != smtpd.SMTP {
-				t.Fatalf("Didn't override protocol: %v", peer.Protocol)
-			}
+			require.Equal(t, "new.example.net", peer.HeloName)
+			require.Equal(t, "42.42.42.42:4242", peer.Addr.String())
+			require.Equal(t, "newusername", peer.Username)
+			require.Equal(t, smtpd.SMTP, peer.Protocol)
+
 			return nil
 		},
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
-
 	defer closer()
 
 	c, err := smtp.Dial(addr)
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	if supported, _ := c.Extension("XCLIENT"); !supported {
-		t.Fatal("XCLIENT not supported")
-	}
+	supported, _ := c.Extension("XCLIENT")
+	require.True(t, supported, "XCLIENT not supported")
 
 	err = cmd(c.Text, 220, "XCLIENT NAME=ignored ADDR=42.42.42.42 PORT=4242 PROTO=SMTP HELO=new.example.net LOGIN=newusername")
-	if err != nil {
-		t.Fatalf("XCLIENT failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := c.Mail("sender@example.org"); err != nil {
-		t.Fatalf("Mail failed: %v", err)
-	}
+	err = c.Mail("sender@example.org")
+	require.NoError(t, err)
 
-	if err := c.Rcpt("recipient@example.net"); err != nil {
-		t.Fatalf("Rcpt failed: %v", err)
-	}
+	err = c.Rcpt("recipient@example.net")
+	require.NoError(t, err)
 
-	if err := c.Rcpt("recipient2@example.net"); err != nil {
-		t.Fatalf("Rcpt2 failed: %v", err)
-	}
+	err = c.Rcpt("recipient2@example.net")
+	require.NoError(t, err)
 
 	wc, err := c.Data()
-	if err != nil {
-		t.Fatalf("Data failed: %v", err)
-	}
+	require.NoError(t, err)
 
 	_, err = fmt.Fprintf(wc, "This is the email body")
-	if err != nil {
-		t.Fatalf("Data body failed: %v", err)
-	}
+	require.NoError(t, err)
 
 	err = wc.Close()
-	if err != nil {
-		t.Fatalf("Data close failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := c.Quit(); err != nil {
-		t.Fatalf("Quit failed: %v", err)
-	}
-
+	err = c.Quit()
+	require.NoError(t, err)
 }
 
 func TestEnvelopeReceived(t *testing.T) {
-
 	addr, closer := runsslserver(t, &smtpd.Server{
 		Hostname: "foobar.example.net",
 		Handler: func(peer smtpd.Peer, env smtpd.Envelope) error {
@@ -1078,49 +835,35 @@ func TestEnvelopeReceived(t *testing.T) {
 		ForceTLS:       true,
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
-
 	defer closer()
 
 	c, err := smtp.Dial(addr)
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := c.StartTLS(&tls.Config{InsecureSkipVerify: true}); err != nil {
-		t.Fatalf("STARTTLS failed: %v", err)
-	}
+	//nolint:gosec
+	err = c.StartTLS(&tls.Config{InsecureSkipVerify: true})
+	require.NoError(t, err)
 
-	if err := c.Mail("sender@example.org"); err != nil {
-		t.Fatalf("MAIL failed: %v", err)
-	}
+	err = c.Mail("sender@example.org")
+	require.NoError(t, err)
 
-	if err := c.Rcpt("recipient@example.net"); err != nil {
-		t.Fatalf("RCPT failed: %v", err)
-	}
+	err = c.Rcpt("recipient@example.net")
+	require.NoError(t, err)
 
 	wc, err := c.Data()
-	if err != nil {
-		t.Fatalf("Data failed: %v", err)
-	}
+	require.NoError(t, err)
 
 	_, err = fmt.Fprintf(wc, "This is the email body")
-	if err != nil {
-		t.Fatalf("Data body failed: %v", err)
-	}
+	require.NoError(t, err)
 
 	err = wc.Close()
-	if err != nil {
-		t.Fatalf("Data close failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := c.Quit(); err != nil {
-		t.Fatalf("QUIT failed: %v", err)
-	}
-
+	err = c.Quit()
+	require.NoError(t, err)
 }
 
 func TestHELO(t *testing.T) {
-
 	addr, closer := runserver(t, &smtpd.Server{
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
@@ -1128,34 +871,25 @@ func TestHELO(t *testing.T) {
 	defer closer()
 
 	c, err := smtp.Dial(addr)
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := cmd(c.Text, 502, "MAIL FROM:<test@example.org>"); err != nil {
-		t.Fatalf("MAIL before HELO didn't fail: %v", err)
-	}
+	err = cmd(c.Text, 502, "MAIL FROM:<test@example.org>")
+	require.NoError(t, err)
 
-	if err := cmd(c.Text, 250, "HELO localhost"); err != nil {
-		t.Fatalf("HELO failed: %v", err)
-	}
+	err = cmd(c.Text, 250, "HELO localhost")
+	require.NoError(t, err)
 
-	if err := cmd(c.Text, 250, "MAIL FROM:<test@example.org>"); err != nil {
-		t.Fatalf("MAIL after HELO failed: %v", err)
-	}
+	err = cmd(c.Text, 250, "MAIL FROM:<test@example.org>")
+	require.NoError(t, err)
 
-	if err := cmd(c.Text, 250, "HELO localhost"); err != nil {
-		t.Fatalf("double HELO failed: %v", err)
-	}
+	err = cmd(c.Text, 250, "HELO localhost")
+	require.NoError(t, err)
 
-	if err := c.Quit(); err != nil {
-		t.Fatalf("Quit failed: %v", err)
-	}
-
+	err = c.Quit()
+	require.NoError(t, err)
 }
 
 func TestLOGINAuth(t *testing.T) {
-
 	addr, closer := runsslserver(t, &smtpd.Server{
 		Authenticator:  func(peer smtpd.Peer, username, password string) error { return nil },
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
@@ -1164,112 +898,73 @@ func TestLOGINAuth(t *testing.T) {
 	defer closer()
 
 	c, err := smtp.Dial(addr)
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := c.StartTLS(&tls.Config{InsecureSkipVerify: true}); err != nil {
-		t.Fatalf("STARTTLS failed: %v", err)
-	}
+	//nolint:gosec
+	err = c.StartTLS(&tls.Config{InsecureSkipVerify: true})
+	require.NoError(t, err)
 
-	if err := cmd(c.Text, 334, "AUTH LOGIN"); err != nil {
-		t.Fatalf("AUTH didn't work: %v", err)
-	}
+	err = cmd(c.Text, 334, "AUTH LOGIN")
+	require.NoError(t, err)
 
-	if err := cmd(c.Text, 502, "foo"); err != nil {
-		t.Fatalf("AUTH didn't fail: %v", err)
-	}
+	err = cmd(c.Text, 502, "foo")
+	require.NoError(t, err)
 
-	if err := cmd(c.Text, 334, "AUTH LOGIN"); err != nil {
-		t.Fatalf("AUTH didn't work: %v", err)
-	}
+	err = cmd(c.Text, 334, "AUTH LOGIN")
+	require.NoError(t, err)
 
-	if err := cmd(c.Text, 334, "Zm9v"); err != nil {
-		t.Fatalf("AUTH didn't work: %v", err)
-	}
+	err = cmd(c.Text, 334, "Zm9v")
+	require.NoError(t, err)
 
-	if err := cmd(c.Text, 502, "foo"); err != nil {
-		t.Fatalf("AUTH didn't fail: %v", err)
-	}
+	err = cmd(c.Text, 502, "foo")
+	require.NoError(t, err)
 
-	if err := cmd(c.Text, 334, "AUTH LOGIN"); err != nil {
-		t.Fatalf("AUTH didn't work: %v", err)
-	}
+	err = cmd(c.Text, 334, "AUTH LOGIN")
+	require.NoError(t, err)
 
-	if err := cmd(c.Text, 334, "Zm9v"); err != nil {
-		t.Fatalf("AUTH didn't work: %v", err)
-	}
+	err = cmd(c.Text, 334, "Zm9v")
+	require.NoError(t, err)
 
-	if err := cmd(c.Text, 235, "Zm9v"); err != nil {
-		t.Fatalf("AUTH didn't work: %v", err)
-	}
+	err = cmd(c.Text, 235, "Zm9v")
+	require.NoError(t, err)
 
-	if err := c.Quit(); err != nil {
-		t.Fatalf("Quit failed: %v", err)
-	}
-
+	err = c.Quit()
+	require.NoError(t, err)
 }
 
-func TestNullSender(t *testing.T) {
-
+func TestMailFrom(t *testing.T) {
 	addr, closer := runserver(t, &smtpd.Server{
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
-
 	defer closer()
 
-	c, err := smtp.Dial(addr)
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
+	testdata := []struct {
+		name, from string
+	}{
+		{"null", "<>"},
+		{"no brackets", "test@example.org"},
 	}
 
-	if err := cmd(c.Text, 250, "HELO localhost"); err != nil {
-		t.Fatalf("HELO failed: %v", err)
+	for _, d := range testdata {
+		t.Run(d.name, func(t *testing.T) {
+			c, err := smtp.Dial(addr)
+			require.NoError(t, err)
+
+			err = cmd(c.Text, 250, "HELO localhost")
+			require.NoError(t, err)
+
+			err = cmd(c.Text, 250, "MAIL FROM:%s", d.from)
+			require.NoError(t, err)
+
+			err = c.Quit()
+			require.NoError(t, err)
+		})
 	}
-
-	if err := cmd(c.Text, 250, "MAIL FROM:<>"); err != nil {
-		t.Fatalf("MAIL with null sender failed: %v", err)
-	}
-
-	if err := c.Quit(); err != nil {
-		t.Fatalf("Quit failed: %v", err)
-	}
-
-}
-
-func TestNoBracketsSender(t *testing.T) {
-
-	addr, closer := runserver(t, &smtpd.Server{
-		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
-	})
-
-	defer closer()
-
-	c, err := smtp.Dial(addr)
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
-	}
-
-	if err := cmd(c.Text, 250, "HELO localhost"); err != nil {
-		t.Fatalf("HELO failed: %v", err)
-	}
-
-	if err := cmd(c.Text, 250, "MAIL FROM:test@example.org"); err != nil {
-		t.Fatalf("MAIL without brackets failed: %v", err)
-	}
-
-	if err := c.Quit(); err != nil {
-		t.Fatalf("Quit failed: %v", err)
-	}
-
 }
 
 func TestErrors(t *testing.T) {
-
 	cert, err := tls.X509KeyPair(localhostCert, localhostKey)
-	if err != nil {
-		t.Fatalf("Cert load failed: %v", err)
-	}
+	require.NoError(t, err)
 
 	server := &smtpd.Server{
 		Authenticator:  func(peer smtpd.Peer, username, password string) error { return nil },
@@ -1277,78 +972,61 @@ func TestErrors(t *testing.T) {
 	}
 
 	addr, closer := runserver(t, server)
-
 	defer closer()
 
 	c, err := smtp.Dial(addr)
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := cmd(c.Text, 502, "AUTH PLAIN foobar"); err != nil {
-		t.Fatalf("AUTH didn't fail: %v", err)
-	}
+	err = cmd(c.Text, 502, "AUTH PLAIN foobar")
+	require.NoError(t, err)
 
-	if err := c.Hello("localhost"); err != nil {
-		t.Fatalf("HELO failed: %v", err)
-	}
+	err = c.Hello("localhost")
+	require.NoError(t, err)
 
-	if err := cmd(c.Text, 502, "AUTH PLAIN foobar"); err != nil {
-		t.Fatalf("AUTH didn't fail: %v", err)
-	}
+	err = cmd(c.Text, 502, "AUTH PLAIN foobar")
+	require.NoError(t, err)
 
-	if err := c.Mail("sender@example.org"); err == nil {
-		t.Fatalf("MAIL didn't fail")
-	}
+	err = c.Mail("sender@example.org")
+	require.Error(t, err, "MAIL didn't fail")
 
-	if err := cmd(c.Text, 502, "STARTTLS"); err != nil {
-		t.Fatalf("STARTTLS didn't fail: %v", err)
-	}
+	err = cmd(c.Text, 502, "STARTTLS")
+	require.NoError(t, err)
 
 	server.TLSConfig = &tls.Config{
+		MinVersion:   tls.VersionTLS12,
 		Certificates: []tls.Certificate{cert},
 	}
 
-	if err := c.StartTLS(&tls.Config{InsecureSkipVerify: true}); err != nil {
-		t.Fatalf("STARTTLS failed: %v", err)
-	}
+	//nolint:gosec
+	err = c.StartTLS(&tls.Config{InsecureSkipVerify: true})
+	require.NoError(t, err)
 
-	if err := cmd(c.Text, 502, "AUTH UNKNOWN"); err != nil {
-		t.Fatalf("AUTH didn't fail: %v", err)
-	}
+	err = cmd(c.Text, 502, "AUTH UNKNOWN")
+	require.NoError(t, err)
 
-	if err := cmd(c.Text, 502, "AUTH PLAIN foobar"); err != nil {
-		t.Fatalf("AUTH didn't fail: %v", err)
-	}
+	err = cmd(c.Text, 502, "AUTH PLAIN foobar")
+	require.NoError(t, err)
 
-	if err := cmd(c.Text, 502, "AUTH PLAIN Zm9vAGJhcg=="); err != nil {
-		t.Fatalf("AUTH didn't fail: %v", err)
-	}
+	err = cmd(c.Text, 502, "AUTH PLAIN Zm9vAGJhcg==")
+	require.NoError(t, err)
 
-	if err := cmd(c.Text, 334, "AUTH PLAIN"); err != nil {
-		t.Fatalf("AUTH didn't work: %v", err)
-	}
+	err = cmd(c.Text, 334, "AUTH PLAIN")
+	require.NoError(t, err)
 
-	if err := cmd(c.Text, 235, "Zm9vAGJhcgBxdXV4"); err != nil {
-		t.Fatalf("AUTH didn't work: %v", err)
-	}
+	err = cmd(c.Text, 235, "Zm9vAGJhcgBxdXV4")
+	require.NoError(t, err)
 
-	if err := c.Mail("sender@example.org"); err != nil {
-		t.Fatalf("MAIL failed: %v", err)
-	}
+	err = c.Mail("sender@example.org")
+	require.NoError(t, err)
 
-	if err := c.Mail("sender@example.org"); err == nil {
-		t.Fatalf("Duplicate MAIL didn't fail")
-	}
+	err = c.Mail("sender@example.org")
+	require.Error(t, err, "Duplicate MAIL didn't fail")
 
-	if err := c.Quit(); err != nil {
-		t.Fatalf("Quit failed: %v", err)
-	}
-
+	err = c.Quit()
+	require.NoError(t, err)
 }
 
 func TestMailformedMAILFROM(t *testing.T) {
-
 	addr, closer := runserver(t, &smtpd.Server{
 		SenderChecker: func(peer smtpd.Peer, addr string) error {
 			if addr != "test@example.org" {
@@ -1358,95 +1036,76 @@ func TestMailformedMAILFROM(t *testing.T) {
 		},
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
-
 	defer closer()
 
 	c, err := smtp.Dial(addr)
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := c.Hello("localhost"); err != nil {
-		t.Fatalf("HELO failed: %v", err)
-	}
+	err = c.Hello("localhost")
+	require.NoError(t, err)
 
-	if err := cmd(c.Text, 250, "MAIL FROM: <test@example.org>"); err != nil {
-		t.Fatalf("MAIL FROM failed with extra whitespace: %v", err)
-	}
+	err = cmd(c.Text, 250, "MAIL FROM: <test@example.org>")
+	require.NoError(t, err)
 
-	if err := c.Quit(); err != nil {
-		t.Fatalf("Quit failed: %v", err)
-	}
+	err = c.Quit()
+	require.NoError(t, err)
 }
 
 func TestTLSListener(t *testing.T) {
-
 	cert, err := tls.X509KeyPair(localhostCert, localhostKey)
-	if err != nil {
-		t.Fatalf("Cert load failed: %v", err)
-	}
+	require.NoError(t, err)
 
 	cfg := &tls.Config{
+		MinVersion:   tls.VersionTLS12,
 		Certificates: []tls.Certificate{cert},
 	}
 
 	ln, err := tls.Listen("tcp", "127.0.0.1:0", cfg)
+	require.NoError(t, err)
+
 	defer ln.Close()
 
 	addr := ln.Addr().String()
 
 	server := &smtpd.Server{
 		Authenticator: func(peer smtpd.Peer, username, password string) error {
-			if peer.TLS == nil {
-				t.Error("didn't correctly set connection state on TLS connection")
-			}
+			require.NotNil(t, peer.TLS, "didn't correctly set connection state on TLS connection")
 			return nil
 		},
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	}
 
 	go func() {
-		server.Serve(ln)
+		_ = server.Serve(ln)
 	}()
 
+	//nolint:gosec
 	conn, err := tls.Dial("tcp", addr, &tls.Config{InsecureSkipVerify: true})
-	if err != nil {
-		t.Fatalf("couldn't connect to tls socket: %v", err)
-	}
+	require.NoError(t, err)
 
 	c, err := smtp.NewClient(conn, "localhost")
-	if err != nil {
-		t.Fatalf("couldn't create client: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := c.Hello("localhost"); err != nil {
-		t.Fatalf("HELO failed: %v", err)
-	}
+	err = c.Hello("localhost")
+	require.NoError(t, err)
 
-	if err := cmd(c.Text, 334, "AUTH PLAIN"); err != nil {
-		t.Fatalf("AUTH didn't work: %v", err)
-	}
+	err = cmd(c.Text, 334, "AUTH PLAIN")
+	require.NoError(t, err)
 
-	if err := cmd(c.Text, 235, "Zm9vAGJhcgBxdXV4"); err != nil {
-		t.Fatalf("AUTH didn't work: %v", err)
-	}
+	err = cmd(c.Text, 235, "Zm9vAGJhcgBxdXV4")
+	require.NoError(t, err)
 
-	if err := c.Quit(); err != nil {
-		t.Fatalf("Quit failed: %v", err)
-	}
-
+	err = c.Quit()
+	require.NoError(t, err)
 }
 
 func TestShutdown(t *testing.T) {
-	fmt.Println("Starting test")
 	server := &smtpd.Server{
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	}
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("Listen failed: %v", err)
-	}
+	require.NoError(t, err)
 
 	srvres := make(chan error)
 	go func() {
@@ -1456,29 +1115,22 @@ func TestShutdown(t *testing.T) {
 
 	// Connect a client
 	c, err := smtp.Dial(ln.Addr().String())
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := c.Hello("localhost"); err != nil {
-		t.Fatalf("HELO failed: %v", err)
-	}
+	err = c.Hello("localhost")
+	require.NoError(t, err)
 
 	// While the client connection is open, shut down the server (without
 	// waiting for it to finish)
 	err = server.Shutdown(false)
-	if err != nil {
-		t.Fatalf("Shutdown returned error: %v", err)
-	}
+	require.NoError(t, err)
 
 	// Verify that Shutdown() worked by attempting to connect another client
 	_, err = smtp.Dial(ln.Addr().String())
-	if err == nil {
-		t.Fatalf("Dial did not fail as expected")
-	}
-	if _, typok := err.(*net.OpError); !typok {
-		t.Fatalf("Dial did not return net.OpError as expected: %v (%T)", err, err)
-	}
+	require.Error(t, err, "Dial did not fail as expected")
+
+	var operr *net.OpError
+	require.ErrorAs(t, err, &operr, "Dial did not return net.OpError as expected")
 
 	// Wait for shutdown to complete
 	shutres := make(chan error)
@@ -1499,18 +1151,16 @@ func TestShutdown(t *testing.T) {
 
 	// Now close the client
 	t.Log("Closing client connection")
-	if err := c.Quit(); err != nil {
-		t.Fatalf("QUIT failed: %v", err)
-	}
-	c.Close()
+	err = c.Quit()
+	require.NoError(t, err)
+
+	_ = c.Close()
 
 	// Wait for Wait() to return
 	t.Log("Waiting for Wait() to return")
 	select {
 	case shuterr := <-shutres:
-		if shuterr != nil {
-			t.Fatalf("Wait() returned error: %v", shuterr)
-		}
+		require.NoError(t, shuterr)
 	case <-time.After(15 * time.Second):
 		t.Fatalf("Timed out waiting for Wait() to return")
 	}
@@ -1519,9 +1169,7 @@ func TestShutdown(t *testing.T) {
 	t.Log("Waiting for Serve() to return")
 	select {
 	case srverr := <-srvres:
-		if srverr != smtpd.ErrServerClosed {
-			t.Fatalf("Serve() returned error: %v", srverr)
-		}
+		require.ErrorIs(t, srverr, smtpd.ErrServerClosed)
 	case <-time.After(15 * time.Second):
 		t.Fatalf("Timed out waiting for Serve() to return")
 	}
@@ -1530,19 +1178,14 @@ func TestShutdown(t *testing.T) {
 func TestServeFailsIfShutdown(t *testing.T) {
 	server := &smtpd.Server{}
 	err := server.Shutdown(true)
-	if err != nil {
-		t.Fatalf("Shutdown() failed: %v", err)
-	}
+	require.NoError(t, err)
+
 	err = server.Serve(nil)
-	if err != smtpd.ErrServerClosed {
-		t.Fatalf("Serve() did not return ErrServerClosed: %v", err)
-	}
+	require.ErrorIs(t, err, smtpd.ErrServerClosed)
 }
 
 func TestWaitFailsIfNotShutdown(t *testing.T) {
 	server := &smtpd.Server{}
 	err := server.Wait()
-	if err == nil {
-		t.Fatalf("Wait() did not fail as expected")
-	}
+	require.Error(t, err)
 }

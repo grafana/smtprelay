@@ -5,9 +5,9 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/textproto"
 	"strconv"
@@ -22,10 +22,11 @@ type command struct {
 	params []string
 }
 
-func parseLine(line string) (cmd command) {
-
-	cmd.line = line
-	cmd.fields = strings.Fields(line)
+func parseLine(line string) command {
+	cmd := command{
+		line:   line,
+		fields: strings.Fields(line),
+	}
 
 	if len(cmd.fields) > 0 {
 
@@ -46,7 +47,7 @@ func parseLine(line string) (cmd command) {
 			// and appends the rest of the third field.
 
 			if cmd.fields[1][len(cmd.fields[1])-1] == ':' && len(cmd.fields) > 2 {
-				cmd.fields[1] = cmd.fields[1] + cmd.fields[2]
+				cmd.fields[1] += cmd.fields[2]
 				cmd.fields = cmd.fields[0:2]
 			}
 
@@ -56,8 +57,7 @@ func parseLine(line string) (cmd command) {
 
 	}
 
-	return
-
+	return cmd
 }
 
 func (session *session) handle(line string) {
@@ -147,9 +147,6 @@ func (session *session) handleHELO(cmd command) {
 	session.peer.HeloName = cmd.fields[1]
 	session.peer.Protocol = SMTP
 	session.reply(250, "Go ahead")
-
-	return
-
 }
 
 func (session *session) handleEHLO(cmd command) {
@@ -186,9 +183,6 @@ func (session *session) handleEHLO(cmd command) {
 	}
 
 	session.reply(250, extensions[len(extensions)-1])
-
-	return
-
 }
 
 func (session *session) handleMAIL(cmd command) {
@@ -243,9 +237,6 @@ func (session *session) handleMAIL(cmd command) {
 	}
 
 	session.reply(250, "Go ahead")
-
-	return
-
 }
 
 func (session *session) handleRCPT(cmd command) {
@@ -282,12 +273,9 @@ func (session *session) handleRCPT(cmd command) {
 	session.envelope.Recipients = append(session.envelope.Recipients, addr)
 
 	session.reply(250, "Go ahead")
-
-	return
-
 }
 
-func (session *session) handleSTARTTLS(cmd command) {
+func (session *session) handleSTARTTLS(_ command) {
 
 	if session.tls {
 		session.reply(502, "Already running in TLS")
@@ -313,7 +301,7 @@ func (session *session) handleSTARTTLS(cmd command) {
 
 	// Reset deadlines on the underlying connection before I replace it
 	// with a TLS connection
-	session.conn.SetDeadline(time.Time{})
+	_ = session.conn.SetDeadline(time.Time{})
 
 	// Replace connection with a TLS connection
 	session.conn = tlsConn
@@ -328,51 +316,42 @@ func (session *session) handleSTARTTLS(cmd command) {
 
 	// Flush the connection to set new timeout deadlines
 	session.flush()
-
-	return
-
 }
 
-func (session *session) handleDATA(cmd command) {
-
+func (session *session) handleDATA(_ command) {
 	if session.envelope == nil || len(session.envelope.Recipients) == 0 {
 		session.reply(502, "Missing RCPT TO command.")
 		return
 	}
 
 	session.reply(354, "Go ahead. End your data with <CR><LF>.<CR><LF>")
-	session.conn.SetDeadline(time.Now().Add(session.server.DataTimeout))
+	_ = session.conn.SetDeadline(time.Now().Add(session.server.DataTimeout))
 
 	data := &bytes.Buffer{}
 	reader := textproto.NewReader(session.reader).DotReader()
 
 	_, err := io.CopyN(data, reader, int64(session.server.MaxMessageSize))
-
-	if err == io.EOF {
-
+	if errors.Is(err, io.EOF) {
 		// EOF was reached before MaxMessageSize
 		// Accept and deliver message
-
 		session.envelope.Data = data.Bytes()
 
-		if err := session.deliver(); err != nil {
+		err = session.deliver()
+		if err != nil {
 			session.error(err)
 		} else {
 			session.reply(250, "Thank you.")
 		}
 
 		session.reset()
-
-	}
-
-	if err != nil {
-		// Network error, ignore
+		return
+	} else if err != nil {
+		// Other network error, ignore
 		return
 	}
 
 	// Discard the rest and report an error.
-	_, err = io.Copy(ioutil.Discard, reader)
-
+	_, err = io.Copy(io.Discard, reader)
 	if err != nil {
 		// Network error, ignore
 		return
@@ -384,26 +363,20 @@ func (session *session) handleDATA(cmd command) {
 	))
 
 	session.reset()
-
-	return
-
 }
 
-func (session *session) handleRSET(cmd command) {
+func (session *session) handleRSET(_ command) {
 	session.reset()
 	session.reply(250, "Go ahead")
-	return
 }
 
-func (session *session) handleNOOP(cmd command) {
+func (session *session) handleNOOP(_ command) {
 	session.reply(250, "Go ahead")
-	return
 }
 
-func (session *session) handleQUIT(cmd command) {
+func (session *session) handleQUIT(_ command) {
 	session.reply(221, "OK, bye")
 	session.close()
-	return
 }
 
 func (session *session) handleAUTH(cmd command) {
@@ -638,8 +611,8 @@ func (session *session) handlePROXY(cmd command) {
 	}
 
 	var (
-		newAddr    net.IP = nil
-		newTCPPort uint64 = 0
+		newAddr    net.IP
+		newTCPPort uint64
 		err        error
 	)
 
