@@ -6,7 +6,7 @@ require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/google/uuid v1.5.0
 	github.com/grafana/pyroscope-go/godeltaprof v0.1.6
-	github.com/prometheus/client_golang v1.17.0
+	github.com/prometheus/client_golang v1.18.0
 	github.com/prometheus/common v0.45.0
 	github.com/stretchr/testify v1.8.4
 	github.com/vharitonsky/iniflags v0.0.0-20180513140207-a33cd0b5f3de
