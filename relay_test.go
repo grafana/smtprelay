@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"log/slog"
 	"strings"
@@ -66,13 +67,14 @@ func Test_RecepientsCheck(t *testing.T) {
 		},
 	}
 
+	ctx := context.Background()
 	r := &relay{}
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			checker := r.recipientChecker(tt.allowed, tt.denied)
 
 			for _, e := range tt.emails {
-				if err := checker(smtpd.Peer{}, e); err != nil {
+				if err := checker(ctx, smtpd.Peer{}, e); err != nil {
 					if !errors.Is(err, tt.expected) {
 						t.Errorf("got %d, want %d for the email %s", err, tt.expected, e)
 					}

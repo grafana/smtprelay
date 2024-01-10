@@ -3,6 +3,7 @@ package smtpd
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/base64"
 	"errors"
@@ -33,7 +34,6 @@ func parseLine(line string) command {
 		cmd.action = strings.ToUpper(cmd.fields[0])
 
 		if len(cmd.fields) > 1 {
-
 			// Account for some clients breaking the standard and having
 			// an extra whitespace after the ':' character. Example:
 			//
@@ -45,7 +45,6 @@ func parseLine(line string) command {
 			//
 			// Thus, we add a check if the second field ends with ':'
 			// and appends the rest of the third field.
-
 			if cmd.fields[1][len(cmd.fields[1])-1] == ':' && len(cmd.fields) > 2 {
 				cmd.fields[1] += cmd.fields[2]
 				cmd.fields = cmd.fields[0:2]
@@ -60,72 +59,43 @@ func parseLine(line string) command {
 	return cmd
 }
 
-func (session *session) handle(line string) {
-
+func (session *session) handle(ctx context.Context, line string) {
 	cmd := parseLine(line)
 
 	// Commands are dispatched to the appropriate handler functions.
 	// If a network error occurs during handling, the handler should
 	// just return and let the error be handled on the next read.
-
 	switch cmd.action {
-
 	case "PROXY":
-		session.handlePROXY(cmd)
-		return
-
+		session.handlePROXY(ctx, cmd)
 	case "HELO":
-		session.handleHELO(cmd)
-		return
-
+		session.handleHELO(ctx, cmd)
 	case "EHLO":
-		session.handleEHLO(cmd)
-		return
-
+		session.handleEHLO(ctx, cmd)
 	case "MAIL":
-		session.handleMAIL(cmd)
-		return
-
+		session.handleMAIL(ctx, cmd)
 	case "RCPT":
-		session.handleRCPT(cmd)
-		return
-
+		session.handleRCPT(ctx, cmd)
 	case "STARTTLS":
-		session.handleSTARTTLS(cmd)
-		return
-
+		session.handleSTARTTLS(ctx, cmd)
 	case "DATA":
-		session.handleDATA(cmd)
-		return
-
+		session.handleDATA(ctx, cmd)
 	case "RSET":
-		session.handleRSET(cmd)
-		return
-
+		session.handleRSET(ctx, cmd)
 	case "NOOP":
-		session.handleNOOP(cmd)
-		return
-
+		session.handleNOOP(ctx, cmd)
 	case "QUIT":
-		session.handleQUIT(cmd)
-		return
-
+		session.handleQUIT(ctx, cmd)
 	case "AUTH":
-		session.handleAUTH(cmd)
-		return
-
+		session.handleAUTH(ctx, cmd)
 	case "XCLIENT":
-		session.handleXCLIENT(cmd)
-		return
-
+		session.handleXCLIENT(ctx, cmd)
+	default:
+		session.reply(502, "Unsupported command.")
 	}
-
-	session.reply(502, "Unsupported command.")
-
 }
 
-func (session *session) handleHELO(cmd command) {
-
+func (session *session) handleHELO(ctx context.Context, cmd command) {
 	if len(cmd.fields) < 2 {
 		session.reply(502, "Missing parameter")
 		return
@@ -137,7 +107,7 @@ func (session *session) handleHELO(cmd command) {
 	}
 
 	if session.server.HeloChecker != nil {
-		err := session.server.HeloChecker(session.peer, cmd.fields[1])
+		err := session.server.HeloChecker(ctx, session.peer, cmd.fields[1])
 		if err != nil {
 			session.error(err)
 			return
@@ -149,8 +119,7 @@ func (session *session) handleHELO(cmd command) {
 	session.reply(250, "Go ahead")
 }
 
-func (session *session) handleEHLO(cmd command) {
-
+func (session *session) handleEHLO(ctx context.Context, cmd command) {
 	if len(cmd.fields) < 2 {
 		session.reply(502, "Missing parameter")
 		return
@@ -162,7 +131,7 @@ func (session *session) handleEHLO(cmd command) {
 	}
 
 	if session.server.HeloChecker != nil {
-		err := session.server.HeloChecker(session.peer, cmd.fields[1])
+		err := session.server.HeloChecker(ctx, session.peer, cmd.fields[1])
 		if err != nil {
 			session.error(err)
 			return
@@ -185,7 +154,7 @@ func (session *session) handleEHLO(cmd command) {
 	session.reply(250, extensions[len(extensions)-1])
 }
 
-func (session *session) handleMAIL(cmd command) {
+func (session *session) handleMAIL(ctx context.Context, cmd command) {
 	if len(cmd.params) != 2 || strings.ToUpper(cmd.params[0]) != "FROM" {
 		session.reply(502, "Invalid syntax.")
 		return
@@ -225,7 +194,7 @@ func (session *session) handleMAIL(cmd command) {
 	}
 
 	if session.server.SenderChecker != nil {
-		err = session.server.SenderChecker(session.peer, addr)
+		err = session.server.SenderChecker(ctx, session.peer, addr)
 		if err != nil {
 			session.error(err)
 			return
@@ -239,7 +208,7 @@ func (session *session) handleMAIL(cmd command) {
 	session.reply(250, "Go ahead")
 }
 
-func (session *session) handleRCPT(cmd command) {
+func (session *session) handleRCPT(ctx context.Context, cmd command) {
 	if len(cmd.params) != 2 || strings.ToUpper(cmd.params[0]) != "TO" {
 		session.reply(502, "Invalid syntax.")
 		return
@@ -256,14 +225,13 @@ func (session *session) handleRCPT(cmd command) {
 	}
 
 	addr, err := parseAddress(cmd.params[1])
-
 	if err != nil {
 		session.reply(502, "Malformed e-mail address")
 		return
 	}
 
 	if session.server.RecipientChecker != nil {
-		err = session.server.RecipientChecker(session.peer, addr)
+		err = session.server.RecipientChecker(ctx, session.peer, addr)
 		if err != nil {
 			session.error(err)
 			return
@@ -275,8 +243,7 @@ func (session *session) handleRCPT(cmd command) {
 	session.reply(250, "Go ahead")
 }
 
-func (session *session) handleSTARTTLS(_ command) {
-
+func (session *session) handleSTARTTLS(_ context.Context, _ command) {
 	if session.tls {
 		session.reply(502, "Already running in TLS")
 		return
@@ -318,7 +285,7 @@ func (session *session) handleSTARTTLS(_ command) {
 	session.flush()
 }
 
-func (session *session) handleDATA(_ command) {
+func (session *session) handleDATA(ctx context.Context, _ command) {
 	if session.envelope == nil || len(session.envelope.Recipients) == 0 {
 		session.reply(502, "Missing RCPT TO command.")
 		return
@@ -336,7 +303,7 @@ func (session *session) handleDATA(_ command) {
 		// Accept and deliver message
 		session.envelope.Data = data.Bytes()
 
-		err = session.deliver()
+		err = session.deliver(ctx)
 		if err != nil {
 			session.error(err)
 		} else {
@@ -365,21 +332,21 @@ func (session *session) handleDATA(_ command) {
 	session.reset()
 }
 
-func (session *session) handleRSET(_ command) {
+func (session *session) handleRSET(_ context.Context, _ command) {
 	session.reset()
 	session.reply(250, "Go ahead")
 }
 
-func (session *session) handleNOOP(_ command) {
+func (session *session) handleNOOP(_ context.Context, _ command) {
 	session.reply(250, "Go ahead")
 }
 
-func (session *session) handleQUIT(_ command) {
+func (session *session) handleQUIT(_ context.Context, _ command) {
 	session.reply(221, "OK, bye")
 	session.close()
 }
 
-func (session *session) handleAUTH(cmd command) {
+func (session *session) handleAUTH(ctx context.Context, cmd command) {
 	if len(cmd.fields) < 2 {
 		session.reply(502, "Invalid syntax.")
 		return
@@ -406,9 +373,7 @@ func (session *session) handleAUTH(cmd command) {
 	password := ""
 
 	switch mechanism {
-
 	case "PLAIN":
-
 		auth := ""
 
 		if len(cmd.fields) < 3 {
@@ -437,9 +402,7 @@ func (session *session) handleAUTH(cmd command) {
 
 		username = string(parts[1])
 		password = string(parts[2])
-
 	case "LOGIN":
-
 		encodedUsername := ""
 
 		if len(cmd.fields) < 3 {
@@ -474,16 +437,13 @@ func (session *session) handleAUTH(cmd command) {
 
 		username = string(byteUsername)
 		password = string(bytePassword)
-
 	default:
-
 		session.logf("unknown authentication mechanism: %s", mechanism)
 		session.reply(502, "Unknown authentication mechanism")
 		return
-
 	}
 
-	err := session.server.Authenticator(session.peer, username, password)
+	err := session.server.Authenticator(ctx, session.peer, username, password)
 	if err != nil {
 		session.error(err)
 		return
@@ -493,10 +453,9 @@ func (session *session) handleAUTH(cmd command) {
 	session.peer.Password = password
 
 	session.reply(235, "OK, you are now authenticated")
-
 }
 
-func (session *session) handleXCLIENT(cmd command) {
+func (session *session) handleXCLIENT(ctx context.Context, cmd command) {
 	if len(cmd.fields) < 2 {
 		session.reply(502, "Invalid syntax.")
 		return
@@ -515,7 +474,6 @@ func (session *session) handleXCLIENT(cmd command) {
 	)
 
 	for _, item := range cmd.fields[1:] {
-
 		parts := strings.Split(item, "=")
 
 		if len(parts) != 2 {
@@ -531,15 +489,12 @@ func (session *session) handleXCLIENT(cmd command) {
 		case "NAME":
 			// Unused in smtpd package
 			continue
-
 		case "HELO":
 			newHeloName = value
 			continue
-
 		case "ADDR":
 			newAddr = net.ParseIP(value)
 			continue
-
 		case "PORT":
 			var err error
 			newTCPPort, err = strconv.ParseUint(value, 10, 16)
@@ -548,11 +503,9 @@ func (session *session) handleXCLIENT(cmd command) {
 				return
 			}
 			continue
-
 		case "LOGIN":
 			newUsername = value
 			continue
-
 		case "PROTO":
 			if value == "SMTP" {
 				newProto = SMTP
@@ -560,12 +513,10 @@ func (session *session) handleXCLIENT(cmd command) {
 				newProto = ESMTP
 			}
 			continue
-
 		default:
 			session.reply(502, "Couldn't decode the command.")
 			return
 		}
-
 	}
 
 	tcpAddr, ok := session.peer.Addr.(*net.TCPAddr)
@@ -594,12 +545,10 @@ func (session *session) handleXCLIENT(cmd command) {
 		session.peer.Protocol = newProto
 	}
 
-	session.welcome()
-
+	session.welcome(ctx)
 }
 
-func (session *session) handlePROXY(cmd command) {
-
+func (session *session) handlePROXY(ctx context.Context, cmd command) {
 	if !session.server.EnableProxyProtocol {
 		session.reply(550, "Proxy Protocol not enabled")
 		return
@@ -638,6 +587,5 @@ func (session *session) handlePROXY(cmd command) {
 		tcpAddr.Port = int(newTCPPort)
 	}
 
-	session.welcome()
-
+	session.welcome(ctx)
 }

@@ -3,7 +3,6 @@ package smtpd
 import "testing"
 
 func TestParseLine(t *testing.T) {
-
 	cmd := parseLine("HELO hostname")
 	if cmd.action != "HELO" {
 		t.Fatalf("unexpected action: %s", cmd.action)
@@ -58,7 +57,6 @@ func TestParseLine(t *testing.T) {
 }
 
 func TestParseLineMailformedMAILFROM(t *testing.T) {
-
 	cmd := parseLine("MAIL FROM: <test@example.org>")
 	if cmd.action != "MAIL" {
 		t.Fatalf("unexpected action: %s", cmd.action)
@@ -79,5 +77,4 @@ func TestParseLineMailformedMAILFROM(t *testing.T) {
 	if cmd.params[1] != "<test@example.org>" {
 		t.Fatalf("unexpected value for param 1: %v", cmd.params[1])
 	}
-
 }
