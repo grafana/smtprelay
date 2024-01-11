@@ -12,7 +12,7 @@ func main() {
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		fmt.Println("Error generating hash: %s", err)
+		fmt.Printf("Error generating hash: %v\n", err)
 	}
 	fmt.Println(string(hash))
 }

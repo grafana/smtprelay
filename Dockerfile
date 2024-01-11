@@ -16,15 +16,13 @@ RUN go mod download -x
 
 COPY . ./
 RUN make build
+# sanity check - make sure the binary runs and is executable
+RUN bin/smtprelay --version
 
-FROM alpine:3.18 AS runtime
-
-RUN apk add --no-cache --upgrade \
-        libcrypto3>=3.1.4-r1 \
-        libssl3>=3.1.4-r1
+FROM alpine:3.19 AS runtime
 
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-COPY --from=build /go/src/github.com/grafana/smtprelay/smtprelay /usr/local/bin/smtprelay
+COPY --from=build /go/src/github.com/grafana/smtprelay/bin/smtprelay /usr/local/bin/smtprelay
 
 ARG GIT_REVISION
 

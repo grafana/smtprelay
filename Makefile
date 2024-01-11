@@ -1,33 +1,48 @@
+.DEFAULT_GOAL = build
 
-ROOTDIR := $(abspath $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
-DISTDIR := $(abspath $(ROOTDIR)/dist)
+BIN_DIR := bin
 
-BUILD_VERSION := $(shell $(ROOTDIR)/scripts/version)
-BUILD_COMMIT := $(shell git rev-parse HEAD^{commit})
-BUILD_STAMP := $(shell date --utc --rfc-3339=seconds)
+BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
+VERSION := $(shell go run ./scripts/version.go)
+GO_LDFLAGS ?= $(shell go run ./scripts/version.go -g)
+GO_FLAGS   := -trimpath -ldflags "$(GO_LDFLAGS)"
+GIT_REVISION ?= $(shell git rev-parse --short HEAD)
+DOCKER_IMAGE ?= grafana/smtprelay
 
-include config.mk
+$(BIN_DIR)/smtprelay: $(shell find . -type f -name '*.go') go.mod go.sum
+	CGO_ENABLED=0 \
+		go build \
+			$(GO_FLAGS) \
+			-o $@ \
+			.
 
--include local/Makefile
-
-build:
-	go build -v .
+build: $(BIN_DIR)/smtprelay
 
 clean:
-	rm smtprelay
+	@rm -rf $(BIN_DIR)
+	@rm -rf *.out
+
+.PHONY: test
+test:
+	go test -race -coverprofile=c.out ./...
 
 .PHONY: docker
-docker: build
+docker:
 	docker build \
-		--build-arg=GIT_REVISION=$(BUILD_COMMIT) \
-		-t $(DOCKER_TAG) \
+		--build-arg=VERSION=$(VERSION) \
+		--build-arg=GIT_REVISION=$(GIT_REVISION) \
+		--build-arg=GO_LDFLAGS='$(GO_LDFLAGS)' \
+		-t $(DOCKER_IMAGE) \
 		.
 
+.PHONY: docker-tag
+docker-tag: docker
+	docker tag $(DOCKER_IMAGE) $(DOCKER_IMAGE):$(VERSION)
+
 .PHONY: docker-push
-docker-push:  docker
-	docker push $(DOCKER_TAG)
-	docker tag $(DOCKER_TAG) $(DOCKER_TAG):$(BUILD_VERSION)
-	docker push $(DOCKER_TAG):$(BUILD_VERSION)
+docker-push: docker-tag
+	docker push $(DOCKER_IMAGE)
+	docker push $(DOCKER_IMAGE):$(VERSION)
 
 .PHONY: lint
 lint:

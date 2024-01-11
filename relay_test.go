@@ -2,29 +2,29 @@ package main
 
 import (
 	"bytes"
-	"io"
+	"context"
+	"errors"
+	"log/slog"
+	"strings"
 	"testing"
 
-	"github.com/chrj/smtpd"
-	"github.com/sirupsen/logrus"
+	"github.com/grafana/smtprelay/internal/smtpd"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func init() {
-	logger := logrus.New()
-	logger.SetOutput(io.Discard)
-	log = logrus.NewEntry(logger)
-	registerMetrics()
-}
-
 func Test_RecepientsCheck(t *testing.T) {
+	registry := prometheus.NewRegistry()
+	err := registerMetrics(registry)
+	require.NoError(t, err)
+
 	tc := []struct {
 		name     string
-		emails   []string
 		allowed  string
 		denied   string
 		expected error
+		emails   []string
 	}{
 		{
 			name:   "without any list, all emails are allowed",
@@ -67,13 +67,15 @@ func Test_RecepientsCheck(t *testing.T) {
 		},
 	}
 
+	ctx := context.Background()
+	r := &relay{}
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
-			checker := recipientChecker(tt.allowed, tt.denied)
+			checker := r.recipientChecker(tt.allowed, tt.denied)
 
 			for _, e := range tt.emails {
-				if err := checker(smtpd.Peer{}, e); err != nil {
-					if err != tt.expected {
+				if err := checker(ctx, smtpd.Peer{}, e); err != nil {
+					if !errors.Is(err, tt.expected) {
 						t.Errorf("got %d, want %d for the email %s", err, tt.expected, e)
 					}
 				}
@@ -84,13 +86,17 @@ func Test_RecepientsCheck(t *testing.T) {
 
 func TestAddLogHeaderFields(t *testing.T) {
 	out := &bytes.Buffer{}
-	logger := logrus.New()
-	logger.SetOutput(out)
-	logger.SetFormatter(&logrus.TextFormatter{
-		DisableTimestamp: true,
-		DisableSorting:   false,
-	})
-	logger.SetLevel(logrus.InfoLevel)
+	logger := slog.New(slog.NewTextHandler(out, &slog.HandlerOptions{
+		// remove time, level, and msg for simpler testing
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			switch a.Key {
+			case "time", "level", "msg":
+				return slog.Attr{}
+			}
+
+			return a
+		},
+	}))
 
 	data := []byte(`Subject: test
 Message-ID: 9a7f8b9c-6d1d-4b9a-8c0a-9e4b9c6d1d4b
@@ -104,41 +110,55 @@ This is a test message.
 `)
 
 	t.Run("no logHeaders", func(t *testing.T) {
-		log, err := addLogHeaderFields(nil, logrus.NewEntry(logger), nil)
+		log, err := addLogHeaderFields(nil, logger, nil)
 		require.NoError(t, err)
 
-		s, err := log.String()
-		require.NoError(t, err)
-		assert.Equal(t, "level=panic\n", s)
+		out.Reset()
+
+		log.Info("")
+		assert.Empty(t, strings.TrimSpace(out.String()))
 	})
 
 	t.Run("with logHeaders", func(t *testing.T) {
-		logHeaders := map[string]string{"header1": "field1", "header2": "field2"}
-		log, err := addLogHeaderFields(logHeaders, logrus.NewEntry(logger), nil)
+		hdrs := map[string]string{"header1": "field1", "header2": "field2"}
+		log, err := addLogHeaderFields(hdrs, logger, nil)
 		require.NoError(t, err)
 
-		s, err := log.String()
-		require.NoError(t, err)
-		assert.Equal(t, "level=panic\n", s)
+		out.Reset()
+
+		log.Info("")
+		assert.Empty(t, strings.TrimSpace(out.String()))
 	})
 
-	t.Run("with simple data, logHeaders not found", func(t *testing.T) {
-		log, err := addLogHeaderFields(logHeaders, logrus.NewEntry(logger), data)
+	t.Run("with simple data, logHeaders not present", func(t *testing.T) {
+		hdrs := map[string]string{"header1": "field1", "header2": "field2"}
+		log, err := addLogHeaderFields(hdrs, logger, data)
 		require.NoError(t, err)
 
-		s, err := log.String()
-		require.NoError(t, err)
-		assert.Equal(t, "level=panic\n", s)
+		out.Reset()
+
+		log.Info("")
+		assert.Empty(t, strings.TrimSpace(out.String()))
 	})
 
 	t.Run("with simple data, logHeaders found", func(t *testing.T) {
-		logHeaders = map[string]string{"subject": "Subject", "msgid": "Message-ID"}
-		log, err := addLogHeaderFields(logHeaders, logrus.NewEntry(logger), data)
+		hdrs := map[string]string{"subject": "Subject", "msgid": "Message-ID"}
+		log, err := addLogHeaderFields(hdrs, logger, data)
 		require.NoError(t, err)
 
-		s, err := log.String()
-		require.NoError(t, err)
-		assert.Equal(t, "level=panic msgid=9a7f8b9c-6d1d-4b9a-8c0a-9e4b9c6d1d4b subject=test\n", s)
+		out.Reset()
+
+		log.Info("")
+
+		// we can't do a straight string compare because the order of the fields
+		// will change
+		pairs := strings.Split(
+			strings.TrimSpace(out.String()),
+			" ",
+		)
+		assert.Equal(t, 2, len(pairs))
+		assert.Contains(t, pairs, "subject=test")
+		assert.Contains(t, pairs, "msgid=9a7f8b9c-6d1d-4b9a-8c0a-9e4b9c6d1d4b")
 	})
 }
 
