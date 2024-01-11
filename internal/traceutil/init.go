@@ -55,9 +55,7 @@ func InitTraceExporter(ctx context.Context, serviceName string, batchOptions ...
 	otel.SetTracerProvider(tp)
 
 	// configure propagation for W3C Trace Context
-	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
-		propagation.TraceContext{},
-	))
+	otel.SetTextMapPropagator(propagation.TraceContext{})
 
 	otel.SetErrorHandler(otelErrHandler(func(err error) {
 		logger.ErrorContext(ctx, "OTel error", err)
