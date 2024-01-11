@@ -13,7 +13,11 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"go.opentelemetry.io/otel"
 )
+
+var tracer = otel.Tracer("github.com/grafana/smtprelay/internal/smtpd")
 
 // Server defines the parameters for running the SMTP server
 //
@@ -344,6 +348,9 @@ func (srv *Server) configureDefaults() {
 }
 
 func (session *session) serve(ctx context.Context) {
+	ctx, span := tracer.Start(ctx, "smtpd.serve")
+	defer span.End()
+
 	defer session.close()
 
 	ctx = context.WithValue(ctx, localAddrContextKey, session.conn.LocalAddr())

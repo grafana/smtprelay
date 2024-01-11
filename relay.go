@@ -267,9 +267,15 @@ func (r *relay) recipientChecker(allowed, denied string) func(ctx context.Contex
 
 func (r *relay) mailHandler(cfg *config) func(ctx context.Context, peer smtpd.Peer, env smtpd.Envelope) error {
 	return func(ctx context.Context, peer smtpd.Peer, env smtpd.Envelope) error {
+		// save upstream span as a link, we're going to re-parent this span to
+		// the extrated propagated trace
+		link := trace.LinkFromContext(ctx)
+
 		tprop := otel.GetTextMapPropagator()
 		ctx = tprop.Extract(ctx, traceutil.MIMEHeaderCarrier(env.Header))
-		ctx, span := tracer.Start(ctx, "relay.mailHandler", trace.WithSpanKind(trace.SpanKindServer),
+		ctx, span := tracer.Start(ctx, "relay.mailHandler",
+			trace.WithSpanKind(trace.SpanKindServer),
+			trace.WithLinks(link),
 			trace.WithAttributes(
 				semconv.ClientAddress(peer.Addr.String()),
 				traceutil.Sender(env.Sender),
