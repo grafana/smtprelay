@@ -215,21 +215,39 @@ func TestSMTP(t *testing.T) {
 }
 
 func TestListenAndServe(t *testing.T) {
-	addr, closer := runserver(t, &smtpd.Server{})
-	closer()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	// get a random port
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	addr := ln.Addr().String()
+	ln.Close()
 
 	server := &smtpd.Server{
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	go func() {
 		_ = server.ListenAndServe(ctx, addr)
 	}()
 
-	time.Sleep(100 * time.Millisecond)
+	// wait for the server to start
+	for {
+		select {
+		case <-ctx.Done():
+			t.Fatal("server failed to start")
+		case <-time.After(10 * time.Millisecond):
+		}
+
+		cl, derr := smtp.Dial(addr)
+		if derr != nil {
+			continue
+		}
+
+		_ = cl.Close()
+		break
+	}
 
 	c, err := smtp.Dial(addr)
 	require.NoError(t, err)
