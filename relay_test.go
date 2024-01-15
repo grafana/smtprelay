@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"errors"
 	"log/slog"
+	"net/textproto"
 	"strings"
 	"testing"
 
@@ -34,13 +36,13 @@ func Test_RecepientsCheck(t *testing.T) {
 			name:     "with emails not in the allow list",
 			emails:   []string{"delivery@grafana.com"},
 			allowed:  "(.+@example.(org|com)|.+@email.com)",
-			expected: observeErr(smtpd.Error{Code: 451, Message: "Invalid recipient address"}),
+			expected: smtpd.Error{Code: 451, Message: "Invalid recipient address"},
 		},
 		{
 			name:     "with emails that are denied",
 			emails:   []string{"delivery@example.com", "example@email.com", "<example@email.com>"},
 			denied:   "(.+@example.(org|com)|.+@email.com)",
-			expected: observeErr(smtpd.Error{Code: 451, Message: "Denied recipient address"}),
+			expected: smtpd.Error{Code: 451, Message: "Denied recipient address"},
 		},
 		{
 			name:   "with valid email that are not denied",
@@ -63,7 +65,7 @@ func Test_RecepientsCheck(t *testing.T) {
 			emails:   []string{"random@deliver.org"},
 			denied:   "(.+@example.(org|com)|.+@email.com)",
 			allowed:  ".+@grafana.com",
-			expected: observeErr(smtpd.Error{Code: 451, Message: "Invalid recipient address"}),
+			expected: smtpd.Error{Code: 451, Message: "Invalid recipient address"},
 		},
 	}
 
@@ -109,9 +111,12 @@ To: Bob <bob@example.com>
 This is a test message.
 `)
 
+	treader := textproto.NewReader(bufio.NewReader(bytes.NewBuffer(data)))
+	hdr, err := treader.ReadMIMEHeader()
+	require.NoError(t, err)
+
 	t.Run("no logHeaders", func(t *testing.T) {
-		log, err := addLogHeaderFields(nil, logger, nil)
-		require.NoError(t, err)
+		log := addLogHeaderFields(nil, logger, textproto.MIMEHeader{})
 
 		out.Reset()
 
@@ -121,8 +126,7 @@ This is a test message.
 
 	t.Run("with logHeaders", func(t *testing.T) {
 		hdrs := map[string]string{"header1": "field1", "header2": "field2"}
-		log, err := addLogHeaderFields(hdrs, logger, nil)
-		require.NoError(t, err)
+		log := addLogHeaderFields(hdrs, logger, textproto.MIMEHeader{})
 
 		out.Reset()
 
@@ -132,8 +136,7 @@ This is a test message.
 
 	t.Run("with simple data, logHeaders not present", func(t *testing.T) {
 		hdrs := map[string]string{"header1": "field1", "header2": "field2"}
-		log, err := addLogHeaderFields(hdrs, logger, data)
-		require.NoError(t, err)
+		log := addLogHeaderFields(hdrs, logger, hdr)
 
 		out.Reset()
 
@@ -143,8 +146,7 @@ This is a test message.
 
 	t.Run("with simple data, logHeaders found", func(t *testing.T) {
 		hdrs := map[string]string{"subject": "Subject", "msgid": "Message-ID"}
-		log, err := addLogHeaderFields(hdrs, logger, data)
-		require.NoError(t, err)
+		log := addLogHeaderFields(hdrs, logger, hdr)
 
 		out.Reset()
 

@@ -215,21 +215,39 @@ func TestSMTP(t *testing.T) {
 }
 
 func TestListenAndServe(t *testing.T) {
-	addr, closer := runserver(t, &smtpd.Server{})
-	closer()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	// get a random port
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	addr := ln.Addr().String()
+	ln.Close()
 
 	server := &smtpd.Server{
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	go func() {
 		_ = server.ListenAndServe(ctx, addr)
 	}()
 
-	time.Sleep(100 * time.Millisecond)
+	// wait for the server to start
+	for {
+		select {
+		case <-ctx.Done():
+			t.Fatal("server failed to start")
+		case <-time.After(10 * time.Millisecond):
+		}
+
+		cl, derr := smtp.Dial(addr)
+		if derr != nil {
+			continue
+		}
+
+		_ = cl.Close()
+		break
+	}
 
 	c, err := smtp.Dial(addr)
 	require.NoError(t, err)
@@ -473,13 +491,16 @@ func TestMaxMessageSize(t *testing.T) {
 }
 
 func TestHandler(t *testing.T) {
+	expectedHeader := textproto.MIMEHeader{}
+	body := "This is the email body"
 
 	addr, closer := runserver(t, &smtpd.Server{
 		Handler: func(ctx context.Context, peer smtpd.Peer, env smtpd.Envelope) error {
 			assert.Equal(t, "sender@example.org", env.Sender)
 			assert.Len(t, env.Recipients, 1)
 			assert.Equal(t, "recipient@example.net", env.Recipients[0])
-			assert.Equal(t, "This is the email body\n", string(env.Data))
+			assert.Equal(t, body+"\n", string(env.Data))
+			assert.Equal(t, env.Header, expectedHeader)
 
 			return nil
 		},
@@ -488,25 +509,21 @@ func TestHandler(t *testing.T) {
 
 	defer closer()
 
-	c, err := smtp.Dial(addr)
+	// no header
+	err := smtp.SendMail(addr, nil, "sender@example.org", []string{
+		"recipient@example.net",
+	}, []byte(body))
 	require.NoError(t, err)
 
-	err = c.Mail("sender@example.org")
-	require.NoError(t, err)
+	// with header
+	expectedHeader = textproto.MIMEHeader{
+		"Foo": []string{"bar"},
+	}
+	body = "Foo: bar\n\nThis is the email body"
 
-	err = c.Rcpt("recipient@example.net")
-	require.NoError(t, err)
-
-	wc, err := c.Data()
-	require.NoError(t, err)
-
-	_, err = fmt.Fprintf(wc, "This is the email body")
-	require.NoError(t, err)
-
-	err = wc.Close()
-	require.NoError(t, err)
-
-	err = c.Quit()
+	err = smtp.SendMail(addr, nil, "sender@example.org", []string{
+		"recipient@example.net",
+	}, []byte(body))
 	require.NoError(t, err)
 }
 
@@ -1029,7 +1046,7 @@ func TestErrors(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestMailformedMAILFROM(t *testing.T) {
+func TestMalformedMAILFROM(t *testing.T) {
 	addr, closer := runserver(t, &smtpd.Server{
 		SenderChecker: func(ctx context.Context, peer smtpd.Peer, addr string) error {
 			if addr != "test@example.org" {

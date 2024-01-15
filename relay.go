@@ -1,13 +1,10 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"net"
 	"net/smtp"
@@ -18,6 +15,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/grafana/smtprelay/internal/smtpd"
+	"github.com/grafana/smtprelay/internal/traceutil"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
+	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // relay is an SMTP relay server which can listen on a single address
@@ -149,7 +151,7 @@ func (r *relay) authChecker(ctx context.Context, _ smtpd.Peer, username string, 
 			slog.Any("error", err),
 		)
 
-		return observeErr(smtpd.Error{Code: 535, Message: "Authentication credentials invalid"})
+		return observeErr(ctx, smtpd.Error{Code: 535, Message: "Authentication credentials invalid"})
 	}
 	return nil
 }
@@ -179,7 +181,7 @@ func (r *relay) connectionChecker(allowedNets []*net.IPNet) func(ctx context.Con
 
 		slog.WarnContext(ctx, "IP out of allowed network range", slog.String("ip", peerIP.String()))
 
-		return observeErr(smtpd.Error{Code: 421, Message: "Denied - IP out of allowed network range"})
+		return observeErr(ctx, smtpd.Error{Code: 421, Message: "Denied - IP out of allowed network range"})
 	}
 }
 
@@ -197,12 +199,12 @@ func (r *relay) senderChecker(allowedSender, allowedUsers string) func(ctx conte
 			user, err := AuthFetch(peer.Username)
 			if err != nil {
 				log.WarnContext(ctx, "sender address not allowed", slog.Any("error", err))
-				return observeErr(smtpd.Error{Code: 451, Message: "sender address not allowed"})
+				return observeErr(ctx, smtpd.Error{Code: 451, Message: "sender address not allowed"})
 			}
 
 			if !addrAllowed(addr, user.allowedAddresses) {
 				log.WarnContext(ctx, "sender address not allowed")
-				return observeErr(smtpd.Error{Code: 451, Message: "sender address not allowed"})
+				return observeErr(ctx, smtpd.Error{Code: 451, Message: "sender address not allowed"})
 			}
 		}
 
@@ -210,7 +212,7 @@ func (r *relay) senderChecker(allowedSender, allowedUsers string) func(ctx conte
 		re, err := regexp.Compile(allowedSender)
 		if err != nil {
 			log.WarnContext(ctx, "allowed_sender invalid", slog.Any("error", err), slog.String("allowed_sender", allowedSender))
-			return observeErr(smtpd.Error{Code: 451, Message: "sender address not allowed"})
+			return observeErr(ctx, smtpd.Error{Code: 451, Message: "sender address not allowed"})
 		}
 
 		if re.MatchString(addr) {
@@ -219,7 +221,7 @@ func (r *relay) senderChecker(allowedSender, allowedUsers string) func(ctx conte
 
 		log.WarnContext(ctx, "sender address not allowed")
 
-		return observeErr(smtpd.Error{Code: 451, Message: "sender address not allowed"})
+		return observeErr(ctx, smtpd.Error{Code: 451, Message: "sender address not allowed"})
 	}
 }
 
@@ -233,12 +235,12 @@ func (r *relay) recipientChecker(allowed, denied string) func(ctx context.Contex
 			if err != nil {
 				log.WarnContext(ctx, "denied_recipients invalid", slog.String("denied_recipients", denied), slog.Any("error", err))
 
-				return observeErr(smtpd.Error{Code: 451, Message: "Invalid recipient address"})
+				return observeErr(ctx, smtpd.Error{Code: 451, Message: "Invalid recipient address"})
 			}
 
 			if deniedRegexp.MatchString(addr) {
 				log.WarnContext(ctx, "receipt address is part of the deny list", slog.String("address", addr))
-				return observeErr(smtpd.Error{Code: 451, Message: "Denied recipient address"})
+				return observeErr(ctx, smtpd.Error{Code: 451, Message: "Denied recipient address"})
 			}
 		}
 
@@ -247,7 +249,7 @@ func (r *relay) recipientChecker(allowed, denied string) func(ctx context.Contex
 			allowedRegexp, err := regexp.Compile(allowed)
 			if err != nil {
 				log.WarnContext(ctx, "allowed_recipients invalid", slog.String("allowed_recipients", allowed), slog.Any("error", err))
-				return observeErr(smtpd.Error{Code: 451, Message: "Invalid recipient address"})
+				return observeErr(ctx, smtpd.Error{Code: 451, Message: "Invalid recipient address"})
 			}
 
 			if allowedRegexp.MatchString(addr) {
@@ -255,7 +257,7 @@ func (r *relay) recipientChecker(allowed, denied string) func(ctx context.Contex
 			}
 
 			log.WarnContext(ctx, "Invalid recipient address", slog.String("address", addr))
-			return observeErr(smtpd.Error{Code: 451, Message: "Invalid recipient address"})
+			return observeErr(ctx, smtpd.Error{Code: 451, Message: "Invalid recipient address"})
 		}
 
 		// No deny nor allow list, receipient check disabled.
@@ -265,12 +267,25 @@ func (r *relay) recipientChecker(allowed, denied string) func(ctx context.Contex
 
 func (r *relay) mailHandler(cfg *config) func(ctx context.Context, peer smtpd.Peer, env smtpd.Envelope) error {
 	return func(ctx context.Context, peer smtpd.Peer, env smtpd.Envelope) error {
-		uniqueID := generateUUID()
+		// save upstream span as a link, we're going to re-parent this span to
+		// the extrated propagated trace
+		link := trace.LinkFromContext(ctx)
 
-		peerIP := ""
-		if addr, ok := peer.Addr.(*net.TCPAddr); ok {
-			peerIP = addr.IP.String()
-		}
+		tprop := otel.GetTextMapPropagator()
+		ctx = tprop.Extract(ctx, traceutil.MIMEHeaderCarrier(env.Header))
+		ctx, span := tracer.Start(ctx, "relay.mailHandler",
+			trace.WithSpanKind(trace.SpanKindServer),
+			trace.WithLinks(link),
+			trace.WithAttributes(
+				semconv.ClientAddress(peer.Addr.String()),
+				traceutil.Sender(env.Sender),
+				traceutil.Recipients(env.Recipients),
+				traceutil.DataSize(int64(len(env.Data))),
+			),
+		)
+		defer span.End()
+
+		uniqueID := generateUUID()
 
 		logger := slog.With(slog.String("component", "mail_handler"), slog.String("uuid", uniqueID))
 
@@ -279,15 +294,9 @@ func (r *relay) mailHandler(cfg *config) func(ctx context.Context, peer smtpd.Pe
 		deliveryLog := logger.With(
 			slog.String("from", env.Sender),
 			slog.Any("to", env.Recipients),
-			slog.String("peer", peerIP),
 			slog.String("host", cfg.remoteHost),
 		)
-		if len(cfg.logHeaders) > 0 {
-			deliveryLog, err = addLogHeaderFields(cfg.logHeaders, deliveryLog, env.Data)
-			if err != nil {
-				logger.WarnContext(ctx, "could not parse headers", slog.Any("error", err))
-			}
-		}
+		deliveryLog = addLogHeaderFields(cfg.logHeaders, deliveryLog, env.Header)
 
 		deliveryLog.InfoContext(ctx, "delivering mail from peer using smarthost")
 
@@ -299,7 +308,7 @@ func (r *relay) mailHandler(cfg *config) func(ctx context.Context, peer smtpd.Pe
 			case "plain":
 				auth = smtp.PlainAuth("", cfg.remoteUser, cfg.remotePass, host)
 			default:
-				return observeErr(smtpd.Error{Code: 530, Message: "Authentication method not supported"})
+				return observeErr(ctx, smtpd.Error{Code: 530, Message: "Authentication method not supported"})
 			}
 		}
 
@@ -315,7 +324,16 @@ func (r *relay) mailHandler(cfg *config) func(ctx context.Context, peer smtpd.Pe
 
 		msgSizeHistogram.Observe(float64(len(env.Data)))
 
+		// successful status is always 250
+		statusCode := 250
 		start := time.Now()
+
+		defer func() {
+			span.SetAttributes(traceutil.StatusCode(statusCode))
+			durationHistogram.WithLabelValues(fmt.Sprintf("%d", statusCode)).
+				Observe(time.Since(start).Seconds())
+		}()
+
 		err = smtp.SendMail(
 			cfg.remoteHost,
 			auth,
@@ -323,7 +341,6 @@ func (r *relay) mailHandler(cfg *config) func(ctx context.Context, peer smtpd.Pe
 			env.Recipients,
 			env.Data,
 		)
-
 		if err != nil {
 			err = fmt.Errorf("sendMail: %w", err)
 
@@ -341,22 +358,23 @@ func (r *relay) mailHandler(cfg *config) func(ctx context.Context, peer smtpd.Pe
 				logger.ErrorContext(ctx, "delivery failed", slog.Any("error", err))
 			}
 
-			durationHistogram.WithLabelValues(fmt.Sprintf("%v", smtpError.Code)).
-				Observe(time.Since(start).Seconds())
-			return observeErr(smtpError)
+			statusCode = smtpError.Code
+
+			return observeErr(ctx, smtpError)
 		}
 
-		durationHistogram.WithLabelValues("none").
-			Observe(time.Since(start).Seconds())
-
-		logger.DebugContext(ctx, "delivery successful", slog.String("host", cfg.remoteHost))
+		deliveryLog.InfoContext(ctx, "delivery successful", slog.Int("status_code", statusCode))
 
 		return nil
 	}
 }
 
-func observeErr(err smtpd.Error) smtpd.Error {
+func observeErr(ctx context.Context, err smtpd.Error) smtpd.Error {
 	errorsCounter.WithLabelValues(fmt.Sprintf("%v", err.Code)).Inc()
+
+	span := trace.SpanFromContext(ctx)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
 
 	return err
 }
@@ -412,13 +430,7 @@ func matchAddr(allowedAddr, addr, domain string) bool {
 	return false
 }
 
-func addLogHeaderFields(logHeaders map[string]string, log *slog.Logger, data []byte) (*slog.Logger, error) {
-	buf := bufio.NewReader(bytes.NewReader(data))
-	headers, err := textproto.NewReader(buf).ReadMIMEHeader()
-	if err != nil && !errors.Is(err, io.EOF) {
-		return nil, fmt.Errorf("readMIMEHeader: %w", err)
-	}
-
+func addLogHeaderFields(logHeaders map[string]string, log *slog.Logger, headers textproto.MIMEHeader) *slog.Logger {
 	for field, hdrname := range logHeaders {
 		val := headers.Get(hdrname)
 		if val != "" {
@@ -427,7 +439,7 @@ func addLogHeaderFields(logHeaders map[string]string, log *slog.Logger, data []b
 		}
 	}
 
-	return log, nil
+	return log
 }
 
 func generateUUID() string {

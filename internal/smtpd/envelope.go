@@ -4,19 +4,21 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
+	"net/textproto"
 	"time"
 )
 
-// Envelope holds a message
+// Envelope holds a message, its headers and recipients. The Header field is
+// read-only and updates to it are not reflected in Data.
 type Envelope struct {
 	Sender     string
 	Recipients []string
+	Header     textproto.MIMEHeader
 	Data       []byte
 }
 
 // AddReceivedLine prepends a Received header to the Data
 func (env *Envelope) AddReceivedLine(peer Peer) {
-
 	tlsDetails := ""
 
 	tlsVersions := map[uint16]string{
@@ -60,8 +62,6 @@ func (env *Envelope) AddReceivedLine(peer Peer) {
 	env.Data = append(env.Data, line...)
 
 	// Move the new Received line up front
-
 	copy(env.Data[len(line):], env.Data[0:len(env.Data)-len(line)])
 	copy(env.Data, line)
-
 }
