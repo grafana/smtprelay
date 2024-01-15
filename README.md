@@ -60,6 +60,21 @@ Structured logs are written to `stderr`.
 
 The log level is `INFO` by default, and can be changed by setting `log_level`.
 
+### Tracing
+
+Tracing is done using OpenTelemetry. Only OTLP over gRPC is supported. The
+exporter can be configured with environment variables, such as
+`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`. Sampling can be adjusted dynamically
+using the Jaeger sampler manager API. Set the sampling server URL with
+`JAEGER_SAMPLER_MANAGER_HOST_PORT`.
+
+Trace propagation uses the W3C Trace Context format, using email MIME headers
+as carriers. The header are assumed to be `traceparent` and `tracestate`.
+
+Note that only the relay's handling of the message itself is traced (after the
+`DATA` command), not the rest of the SMTP conversation. For this reason, the
+span's timing will miss the time spent before the `DATA` command.
+
 ### Docker
 
 We publish images on DockerHub at [`grafana/smtprelay`](https://hub.docker.com/r/grafana/smtprelay)
@@ -72,6 +87,12 @@ To test code or config, start smtprelay, and send test email using `swaks`.
 
 ```console
 $ swaks --to=test@example.com --from=noreply@example.com --server=localhost:2525 --h-Subject="Hello from smtprelay" --body="This is test email from smtprelay"
+```
+
+To test with trace propagation, start `smtprelay` using `air`, and use [otel-cli](https://github.com/equinix/otel-cli):
+
+```console
+$ otel-cli exec -s swaks -n "send e-mail" -- sh -c 'swaks --to alice@example.com --from=bob@example.com --server localhost:2525 --h-Subject: "Hello from smtprelay" -h-Traceparent: "${TRACEPARENT}" --body "This is a test email from smtprelay"'
 ```
 
 ### Acknowledgements

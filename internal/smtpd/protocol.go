@@ -62,6 +62,9 @@ func parseLine(line string) command {
 func (session *session) handle(ctx context.Context, line string) {
 	cmd := parseLine(line)
 
+	ctx, span := tracer.Start(ctx, "session.handle"+cmd.action)
+	defer span.End()
+
 	// Commands are dispatched to the appropriate handler functions.
 	// If a network error occurs during handling, the handler should
 	// just return and let the error be handled on the next read.
@@ -302,6 +305,10 @@ func (session *session) handleDATA(ctx context.Context, _ command) {
 		// EOF was reached before MaxMessageSize
 		// Accept and deliver message
 		session.envelope.Data = data.Bytes()
+
+		// re-read to get the MIME header (if any)
+		header, _ := textproto.NewReader(bufio.NewReader(data)).ReadMIMEHeader()
+		session.envelope.Header = header
 
 		err = session.deliver(ctx)
 		if err != nil {

@@ -1,0 +1,29 @@
+# Config file for [Air](https://github.com/cosmtrek/air)
+
+root = "."
+tmp_dir = ".air.tmp"
+
+[build]
+cmd = "make build"
+bin = "smtprelay"
+full_bin = """OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://kubernetes.docker.internal:4317 \
+    OTEL_RESOURCE_ATTRIBUTES=namespace=default,cluster=local,k8s.namespace.name=default,k8s.cluster.name=local \
+    JAEGER_SAMPLER_MANAGER_HOST_PORT=http://kubernetes.docker.internal:5778/sampling \
+    bin/smtprelay \
+    -log_level=debug \
+    -log_format=logfmt \
+    -listen localhost:2525 \
+    -metrics_listen=127.0.0.1:8888 \
+    -remote_host localhost:2526 \
+    -log_header "ua=User-Agent subject=Subject msg_id=message-id"
+"""
+include_ext = ["go", "mod"]
+exclude_dir = [ ".air.tmp" ]
+# SIGINT before SIGKILL (mac/linux only)
+send_interrupt = true
+delay = 1000 # ms
+kill_delay = 1000 # ms
+
+[misc]
+# Delete .air.tmp directory on exit
+clean_on_exit = true
