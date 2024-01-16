@@ -27,6 +27,8 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: grafana/smtprelay
+          tags: |
+            type=ref,event=tag
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
