@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - owensmallwood/add-gh-action-to-build-and-push-docker-image
   release:
     types: [published]
 
