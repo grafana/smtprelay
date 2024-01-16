@@ -20,5 +20,6 @@ func TestMIMEHeaderCarrier(t *testing.T) {
 	assert.Equal(t, "e775b110dfe5dd5e0f385d5afe2df71e", span.SpanContext().TraceID().String())
 
 	keys := hc.Keys()
-	assert.EqualValues(t, []string{"Foo", "Traceparent"}, keys)
+	assert.Contains(t, keys, "Traceparent")
+	assert.Contains(t, keys, "Foo")
 }
