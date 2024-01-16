@@ -28,6 +28,7 @@ jobs:
           images: grafana/smtprelay
           tags: |
             type=ref,event=tag
+            type=edge
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
