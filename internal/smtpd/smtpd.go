@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/textproto"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -95,15 +96,6 @@ type Peer struct {
 	Protocol   Protocol             // Protocol used, SMTP or ESMTP
 	ServerName string               // A copy of Server.Hostname
 }
-
-// Error represents an Error reported in the SMTP session.
-type Error struct {
-	Message string // The error message
-	Code    int    // The integer error code
-}
-
-// Error returns a string representation of the SMTP error
-func (e Error) Error() string { return fmt.Sprintf("%d %s", e.Code, e.Message) }
 
 // ErrServerClosed is returned by the Server's Serve and ListenAndServe,
 // methods after a call to Shutdown.
@@ -429,9 +421,9 @@ func (session *session) flush() {
 }
 
 func (session *session) error(err error) {
-	var smtpdError Error
+	var smtpdError *textproto.Error
 	if errors.As(err, &smtpdError) {
-		session.reply(smtpdError.Code, smtpdError.Message)
+		session.reply(smtpdError.Code, smtpdError.Msg)
 	} else {
 		session.reply(502, fmt.Sprintf("%s", err))
 	}

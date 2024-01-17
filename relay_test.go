@@ -36,13 +36,13 @@ func Test_RecepientsCheck(t *testing.T) {
 			name:     "with emails not in the allow list",
 			emails:   []string{"delivery@grafana.com"},
 			allowed:  "(.+@example.(org|com)|.+@email.com)",
-			expected: smtpd.Error{Code: 451, Message: "Invalid recipient address"},
+			expected: &textproto.Error{Code: 451, Msg: "Invalid recipient address"},
 		},
 		{
 			name:     "with emails that are denied",
 			emails:   []string{"delivery@example.com", "example@email.com", "<example@email.com>"},
 			denied:   "(.+@example.(org|com)|.+@email.com)",
-			expected: smtpd.Error{Code: 451, Message: "Denied recipient address"},
+			expected: &textproto.Error{Code: 451, Msg: "Denied recipient address"},
 		},
 		{
 			name:   "with valid email that are not denied",
@@ -65,7 +65,7 @@ func Test_RecepientsCheck(t *testing.T) {
 			emails:   []string{"random@deliver.org"},
 			denied:   "(.+@example.(org|com)|.+@email.com)",
 			allowed:  ".+@grafana.com",
-			expected: smtpd.Error{Code: 451, Message: "Invalid recipient address"},
+			expected: &textproto.Error{Code: 451, Msg: "Invalid recipient address"},
 		},
 	}
 

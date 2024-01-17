@@ -151,7 +151,7 @@ func (r *relay) authChecker(ctx context.Context, _ smtpd.Peer, username string, 
 			slog.Any("error", err),
 		)
 
-		return observeErr(ctx, smtpd.Error{Code: 535, Message: "Authentication credentials invalid"})
+		return observeErr(ctx, &textproto.Error{Code: 535, Msg: "Authentication credentials invalid"})
 	}
 	return nil
 }
@@ -181,7 +181,7 @@ func (r *relay) connectionChecker(allowedNets []*net.IPNet) func(ctx context.Con
 
 		slog.WarnContext(ctx, "IP out of allowed network range", slog.String("ip", peerIP.String()))
 
-		return observeErr(ctx, smtpd.Error{Code: 421, Message: "Denied - IP out of allowed network range"})
+		return observeErr(ctx, &textproto.Error{Code: 421, Msg: "Denied - IP out of allowed network range"})
 	}
 }
 
@@ -199,12 +199,12 @@ func (r *relay) senderChecker(allowedSender, allowedUsers string) func(ctx conte
 			user, err := AuthFetch(peer.Username)
 			if err != nil {
 				log.WarnContext(ctx, "sender address not allowed", slog.Any("error", err))
-				return observeErr(ctx, smtpd.Error{Code: 451, Message: "sender address not allowed"})
+				return observeErr(ctx, &textproto.Error{Code: 451, Msg: "sender address not allowed"})
 			}
 
 			if !addrAllowed(addr, user.allowedAddresses) {
 				log.WarnContext(ctx, "sender address not allowed")
-				return observeErr(ctx, smtpd.Error{Code: 451, Message: "sender address not allowed"})
+				return observeErr(ctx, &textproto.Error{Code: 451, Msg: "sender address not allowed"})
 			}
 		}
 
@@ -212,7 +212,7 @@ func (r *relay) senderChecker(allowedSender, allowedUsers string) func(ctx conte
 		re, err := regexp.Compile(allowedSender)
 		if err != nil {
 			log.WarnContext(ctx, "allowed_sender invalid", slog.Any("error", err), slog.String("allowed_sender", allowedSender))
-			return observeErr(ctx, smtpd.Error{Code: 451, Message: "sender address not allowed"})
+			return observeErr(ctx, &textproto.Error{Code: 451, Msg: "sender address not allowed"})
 		}
 
 		if re.MatchString(addr) {
@@ -221,7 +221,7 @@ func (r *relay) senderChecker(allowedSender, allowedUsers string) func(ctx conte
 
 		log.WarnContext(ctx, "sender address not allowed")
 
-		return observeErr(ctx, smtpd.Error{Code: 451, Message: "sender address not allowed"})
+		return observeErr(ctx, &textproto.Error{Code: 451, Msg: "sender address not allowed"})
 	}
 }
 
@@ -235,12 +235,12 @@ func (r *relay) recipientChecker(allowed, denied string) func(ctx context.Contex
 			if err != nil {
 				log.WarnContext(ctx, "denied_recipients invalid", slog.String("denied_recipients", denied), slog.Any("error", err))
 
-				return observeErr(ctx, smtpd.Error{Code: 451, Message: "Invalid recipient address"})
+				return observeErr(ctx, &textproto.Error{Code: 451, Msg: "Invalid recipient address"})
 			}
 
 			if deniedRegexp.MatchString(addr) {
 				log.WarnContext(ctx, "receipt address is part of the deny list", slog.String("address", addr))
-				return observeErr(ctx, smtpd.Error{Code: 451, Message: "Denied recipient address"})
+				return observeErr(ctx, &textproto.Error{Code: 451, Msg: "Denied recipient address"})
 			}
 		}
 
@@ -249,7 +249,7 @@ func (r *relay) recipientChecker(allowed, denied string) func(ctx context.Contex
 			allowedRegexp, err := regexp.Compile(allowed)
 			if err != nil {
 				log.WarnContext(ctx, "allowed_recipients invalid", slog.String("allowed_recipients", allowed), slog.Any("error", err))
-				return observeErr(ctx, smtpd.Error{Code: 451, Message: "Invalid recipient address"})
+				return observeErr(ctx, &textproto.Error{Code: 451, Msg: "Invalid recipient address"})
 			}
 
 			if allowedRegexp.MatchString(addr) {
@@ -257,7 +257,7 @@ func (r *relay) recipientChecker(allowed, denied string) func(ctx context.Contex
 			}
 
 			log.WarnContext(ctx, "Invalid recipient address", slog.String("address", addr))
-			return observeErr(ctx, smtpd.Error{Code: 451, Message: "Invalid recipient address"})
+			return observeErr(ctx, &textproto.Error{Code: 451, Msg: "Invalid recipient address"})
 		}
 
 		// No deny nor allow list, receipient check disabled.
@@ -308,7 +308,7 @@ func (r *relay) mailHandler(cfg *config) func(ctx context.Context, peer smtpd.Pe
 			case "plain":
 				auth = smtp.PlainAuth("", cfg.remoteUser, cfg.remotePass, host)
 			default:
-				return observeErr(ctx, smtpd.Error{Code: 530, Message: "Authentication method not supported"})
+				return observeErr(ctx, &textproto.Error{Code: 530, Msg: "Authentication method not supported"})
 			}
 		}
 
@@ -344,23 +344,20 @@ func (r *relay) mailHandler(cfg *config) func(ctx context.Context, peer smtpd.Pe
 		if err != nil {
 			err = fmt.Errorf("sendMail: %w", err)
 
-			var smtpError smtpd.Error
 			var tperr *textproto.Error
 
 			if errors.As(err, &tperr) {
-				smtpError = smtpd.Error{Code: tperr.Code, Message: tperr.Msg}
-
 				logger.ErrorContext(ctx, "delivery failed",
 					slog.Int("err_code", tperr.Code), slog.String("err_msg", tperr.Msg))
 			} else {
-				smtpError = smtpd.Error{Code: 554, Message: "Forwarding failed for message ID " + uniqueID}
+				tperr = &textproto.Error{Code: 554, Msg: "Forwarding failed for message ID " + uniqueID}
 
 				logger.ErrorContext(ctx, "delivery failed", slog.Any("error", err))
 			}
 
-			statusCode = smtpError.Code
+			statusCode = tperr.Code
 
-			return observeErr(ctx, smtpError)
+			return observeErr(ctx, tperr)
 		}
 
 		deliveryLog.InfoContext(ctx, "delivery successful", slog.Int("status_code", statusCode))
@@ -369,7 +366,7 @@ func (r *relay) mailHandler(cfg *config) func(ctx context.Context, peer smtpd.Pe
 	}
 }
 
-func observeErr(ctx context.Context, err smtpd.Error) smtpd.Error {
+func observeErr(ctx context.Context, err *textproto.Error) error {
 	errorsCounter.WithLabelValues(fmt.Sprintf("%v", err.Code)).Inc()
 
 	span := trace.SpanFromContext(ctx)
