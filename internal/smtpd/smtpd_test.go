@@ -328,7 +328,7 @@ func TestSTARTTLS(t *testing.T) {
 func TestAuthRejection(t *testing.T) {
 	addr, closer := runsslserver(t, &smtpd.Server{
 		Authenticator: func(ctx context.Context, peer smtpd.Peer, username, password string) error {
-			return &textproto.Error{Code: 550, Msg: "Denied"}
+			return smtpd.Err550Denied
 		},
 		ForceTLS:       true,
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
@@ -365,7 +365,7 @@ func TestAuthNotSupported(t *testing.T) {
 func TestAuthBypass(t *testing.T) {
 	addr, closer := runsslserver(t, &smtpd.Server{
 		Authenticator: func(ctx context.Context, peer smtpd.Peer, username, password string) error {
-			return &textproto.Error{Code: 550, Msg: "Denied"}
+			return smtpd.Err550Denied
 		},
 		ForceTLS:       true,
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
@@ -385,7 +385,7 @@ func TestAuthBypass(t *testing.T) {
 func TestConnectionCheck(t *testing.T) {
 	addr, closer := runserver(t, &smtpd.Server{
 		ConnectionChecker: func(ctx context.Context, peer smtpd.Peer) error {
-			return &textproto.Error{Code: 552, Msg: "Denied"}
+			return smtpd.Err552Denied
 		},
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
@@ -412,7 +412,7 @@ func TestHELOCheck(t *testing.T) {
 	addr, closer := runserver(t, &smtpd.Server{
 		HeloChecker: func(ctx context.Context, peer smtpd.Peer, name string) error {
 			require.Equal(t, "foobar.local", name)
-			return &textproto.Error{Code: 552, Msg: "Denied"}
+			return smtpd.Err552Denied
 		},
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
@@ -429,7 +429,7 @@ func TestHELOCheck(t *testing.T) {
 func TestSenderCheck(t *testing.T) {
 	addr, closer := runserver(t, &smtpd.Server{
 		SenderChecker: func(ctx context.Context, peer smtpd.Peer, addr string) error {
-			return &textproto.Error{Code: 552, Msg: "Denied"}
+			return smtpd.Err552Denied
 		},
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
@@ -445,7 +445,7 @@ func TestSenderCheck(t *testing.T) {
 func TestRecipientCheck(t *testing.T) {
 	addr, closer := runserver(t, &smtpd.Server{
 		RecipientChecker: func(ctx context.Context, peer smtpd.Peer, addr string) error {
-			return &textproto.Error{Code: 552, Msg: "Denied"}
+			return smtpd.Err552Denied
 		},
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
@@ -530,7 +530,7 @@ func TestHandler(t *testing.T) {
 func TestRejectHandler(t *testing.T) {
 	addr, closer := runserver(t, &smtpd.Server{
 		Handler: func(ctx context.Context, peer smtpd.Peer, env smtpd.Envelope) error {
-			return &textproto.Error{Code: 550, Msg: "Rejected"}
+			return smtpd.Err550Rejected
 		},
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
@@ -1050,7 +1050,7 @@ func TestMalformedMAILFROM(t *testing.T) {
 	addr, closer := runserver(t, &smtpd.Server{
 		SenderChecker: func(ctx context.Context, peer smtpd.Peer, addr string) error {
 			if addr != "test@example.org" {
-				return &textproto.Error{Code: 502, Msg: "Denied"}
+				return smtpd.Err502Denied
 			}
 			return nil
 		},
