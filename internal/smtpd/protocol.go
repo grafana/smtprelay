@@ -94,13 +94,13 @@ func (session *session) handle(ctx context.Context, line string) {
 	case "XCLIENT":
 		session.handleXCLIENT(ctx, cmd)
 	default:
-		session.reply(502, "Unsupported command.")
+		session.error(ErrUnsupportedCommand)
 	}
 }
 
 func (session *session) handleHELO(ctx context.Context, cmd command) {
 	if len(cmd.fields) < 2 {
-		session.reply(502, "Missing parameter")
+		session.error(ErrMissingParam)
 		return
 	}
 
@@ -124,7 +124,7 @@ func (session *session) handleHELO(ctx context.Context, cmd command) {
 
 func (session *session) handleEHLO(ctx context.Context, cmd command) {
 	if len(cmd.fields) < 2 {
-		session.reply(502, "Missing parameter")
+		session.error(ErrMissingParam)
 		return
 	}
 
@@ -159,27 +159,27 @@ func (session *session) handleEHLO(ctx context.Context, cmd command) {
 
 func (session *session) handleMAIL(ctx context.Context, cmd command) {
 	if len(cmd.params) != 2 || strings.ToUpper(cmd.params[0]) != "FROM" {
-		session.reply(502, "Invalid syntax.")
+		session.error(ErrInvalidSyntax)
 		return
 	}
 
 	if session.peer.HeloName == "" {
-		session.reply(502, "Please introduce yourself first.")
+		session.error(ErrNoHELO)
 		return
 	}
 
 	if session.server.Authenticator != nil && session.peer.Username == "" {
-		session.reply(530, "Authentication Required.")
+		session.error(ErrAuthRequired)
 		return
 	}
 
 	if !session.tls && session.server.ForceTLS {
-		session.reply(502, "Please turn on TLS by issuing a STARTTLS command.")
+		session.error(ErrNoSTARTTLS)
 		return
 	}
 
 	if session.envelope != nil {
-		session.reply(502, "Duplicate MAIL")
+		session.error(ErrDuplicateMAIL)
 		return
 	}
 
@@ -189,9 +189,8 @@ func (session *session) handleMAIL(ctx context.Context, cmd command) {
 	// We must accept a null sender as per rfc5321 section-6.1.
 	if cmd.params[1] != "<>" {
 		addr, err = parseAddress(cmd.params[1])
-
 		if err != nil {
-			session.reply(502, "Malformed e-mail address")
+			session.error(ErrMalformedEmail)
 			return
 		}
 	}
@@ -213,23 +212,23 @@ func (session *session) handleMAIL(ctx context.Context, cmd command) {
 
 func (session *session) handleRCPT(ctx context.Context, cmd command) {
 	if len(cmd.params) != 2 || strings.ToUpper(cmd.params[0]) != "TO" {
-		session.reply(502, "Invalid syntax.")
+		session.error(ErrInvalidSyntax)
 		return
 	}
 
 	if session.envelope == nil {
-		session.reply(502, "Missing MAIL FROM command.")
+		session.error(ErrNoMAIL)
 		return
 	}
 
 	if len(session.envelope.Recipients) >= session.server.MaxRecipients {
-		session.reply(452, "Too many recipients")
+		session.error(ErrTooManyRecipients)
 		return
 	}
 
 	addr, err := parseAddress(cmd.params[1])
 	if err != nil {
-		session.reply(502, "Malformed e-mail address")
+		session.error(ErrMalformedEmail)
 		return
 	}
 
@@ -248,12 +247,12 @@ func (session *session) handleRCPT(ctx context.Context, cmd command) {
 
 func (session *session) handleSTARTTLS(_ context.Context, _ command) {
 	if session.tls {
-		session.reply(502, "Already running in TLS")
+		session.error(ErrDuplicateSTARTTLS)
 		return
 	}
 
 	if session.server.TLSConfig == nil {
-		session.reply(502, "TLS not supported")
+		session.error(ErrTLSNotSupported)
 		return
 	}
 
@@ -262,7 +261,7 @@ func (session *session) handleSTARTTLS(_ context.Context, _ command) {
 
 	if err := tlsConn.Handshake(); err != nil {
 		session.logError(err, "couldn't perform handshake")
-		session.reply(550, "Handshake error")
+		session.error(ErrBadHandshake)
 		return
 	}
 
@@ -290,7 +289,7 @@ func (session *session) handleSTARTTLS(_ context.Context, _ command) {
 
 func (session *session) handleDATA(ctx context.Context, _ command) {
 	if session.envelope == nil || len(session.envelope.Recipients) == 0 {
-		session.reply(502, "Missing RCPT TO command.")
+		session.error(ErrNoRCPT)
 		return
 	}
 
@@ -331,10 +330,7 @@ func (session *session) handleDATA(ctx context.Context, _ command) {
 		return
 	}
 
-	session.reply(552, fmt.Sprintf(
-		"Message exceeded max message size of %d bytes",
-		session.server.MaxMessageSize,
-	))
+	session.error(fmt.Errorf("%w (max %d bytes)", ErrTooBig, session.server.MaxMessageSize))
 
 	session.reset()
 }
@@ -355,22 +351,22 @@ func (session *session) handleQUIT(_ context.Context, _ command) {
 
 func (session *session) handleAUTH(ctx context.Context, cmd command) {
 	if len(cmd.fields) < 2 {
-		session.reply(502, "Invalid syntax.")
+		session.error(ErrInvalidSyntax)
 		return
 	}
 
 	if session.server.Authenticator == nil {
-		session.reply(502, "AUTH not supported.")
+		session.error(ErrUnsupportedCommand)
 		return
 	}
 
 	if session.peer.HeloName == "" {
-		session.reply(502, "Please introduce yourself first.")
+		session.error(ErrNoHELO)
 		return
 	}
 
 	if !session.tls {
-		session.reply(502, "Cannot AUTH in plain text mode. Use STARTTLS.")
+		session.error(ErrNoSTARTTLS)
 		return
 	}
 
@@ -396,14 +392,14 @@ func (session *session) handleAUTH(ctx context.Context, cmd command) {
 		data, err := base64.StdEncoding.DecodeString(auth)
 
 		if err != nil {
-			session.reply(502, "Couldn't decode your credentials")
+			session.error(ErrMalformedAuth)
 			return
 		}
 
 		parts := bytes.Split(data, []byte{0})
 
 		if len(parts) != 3 {
-			session.reply(502, "Couldn't decode your credentials")
+			session.error(ErrMalformedAuth)
 			return
 		}
 
@@ -425,7 +421,7 @@ func (session *session) handleAUTH(ctx context.Context, cmd command) {
 		byteUsername, err := base64.StdEncoding.DecodeString(encodedUsername)
 
 		if err != nil {
-			session.reply(502, "Couldn't decode your credentials")
+			session.error(ErrMalformedAuth)
 			return
 		}
 
@@ -438,7 +434,7 @@ func (session *session) handleAUTH(ctx context.Context, cmd command) {
 		bytePassword, err := base64.StdEncoding.DecodeString(session.scanner.Text())
 
 		if err != nil {
-			session.reply(502, "Couldn't decode your credentials")
+			session.error(ErrMalformedAuth)
 			return
 		}
 
@@ -446,7 +442,7 @@ func (session *session) handleAUTH(ctx context.Context, cmd command) {
 		password = string(bytePassword)
 	default:
 		session.logf("unknown authentication mechanism: %s", mechanism)
-		session.reply(502, "Unknown authentication mechanism")
+		session.error(ErrUnknownAuth)
 		return
 	}
 
@@ -464,12 +460,12 @@ func (session *session) handleAUTH(ctx context.Context, cmd command) {
 
 func (session *session) handleXCLIENT(ctx context.Context, cmd command) {
 	if len(cmd.fields) < 2 {
-		session.reply(502, "Invalid syntax.")
+		session.error(ErrInvalidSyntax)
 		return
 	}
 
 	if !session.server.EnableXCLIENT {
-		session.reply(550, "XCLIENT not enabled")
+		session.error(ErrUnsupportedCommand)
 		return
 	}
 
@@ -484,7 +480,8 @@ func (session *session) handleXCLIENT(ctx context.Context, cmd command) {
 		parts := strings.Split(item, "=")
 
 		if len(parts) != 2 {
-			session.reply(502, "Couldn't decode the command.")
+			session.error(ErrMalformedCommand)
+
 			return
 		}
 
@@ -506,7 +503,8 @@ func (session *session) handleXCLIENT(ctx context.Context, cmd command) {
 			var err error
 			newTCPPort, err = strconv.ParseUint(value, 10, 16)
 			if err != nil {
-				session.reply(502, "Couldn't decode the command.")
+				session.error(ErrMalformedCommand)
+
 				return
 			}
 			continue
@@ -521,14 +519,15 @@ func (session *session) handleXCLIENT(ctx context.Context, cmd command) {
 			}
 			continue
 		default:
-			session.reply(502, "Couldn't decode the command.")
+			session.error(ErrMalformedCommand)
+
 			return
 		}
 	}
 
 	tcpAddr, ok := session.peer.Addr.(*net.TCPAddr)
 	if !ok {
-		session.reply(502, "Unsupported network connection")
+		session.error(ErrUnsupportedConn)
 		return
 	}
 
@@ -557,12 +556,12 @@ func (session *session) handleXCLIENT(ctx context.Context, cmd command) {
 
 func (session *session) handlePROXY(ctx context.Context, cmd command) {
 	if !session.server.EnableProxyProtocol {
-		session.reply(550, "Proxy Protocol not enabled")
+		session.error(ErrUnsupportedCommand)
 		return
 	}
 
 	if len(cmd.fields) < 6 {
-		session.reply(502, "Couldn't decode the command.")
+		session.error(ErrMalformedCommand)
 		return
 	}
 
@@ -576,13 +575,13 @@ func (session *session) handlePROXY(ctx context.Context, cmd command) {
 
 	newTCPPort, err = strconv.ParseUint(cmd.fields[4], 10, 16)
 	if err != nil {
-		session.reply(502, "Couldn't decode the command.")
+		session.error(ErrMalformedCommand)
 		return
 	}
 
 	tcpAddr, ok := session.peer.Addr.(*net.TCPAddr)
 	if !ok {
-		session.reply(502, "Unsupported network connection")
+		session.error(ErrUnsupportedConn)
 		return
 	}
 
