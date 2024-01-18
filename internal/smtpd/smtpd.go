@@ -366,8 +366,7 @@ func (session *session) serve(ctx context.Context) {
 		err := session.scanner.Err()
 
 		if errors.Is(err, bufio.ErrTooLong) {
-
-			session.reply(500, "Line too long")
+			session.error(ErrLineTooLong)
 
 			// Advance reader to the next newline
 
@@ -387,7 +386,7 @@ func (session *session) serve(ctx context.Context) {
 }
 
 func (session *session) reject() {
-	session.reply(421, "Too busy. Try again later.")
+	session.error(ErrBusy)
 	session.close()
 }
 
@@ -423,9 +422,13 @@ func (session *session) flush() {
 func (session *session) error(err error) {
 	var smtpdError *textproto.Error
 	if errors.As(err, &smtpdError) {
-		session.reply(smtpdError.Code, smtpdError.Msg)
+		// session.reply(smtpdError.Code, err.Error())
+		// the error code will be prefixed in the error message
+		session.logf("sending: %s", err)
+		_, _ = fmt.Fprintf(session.writer, "%s\r\n", err)
+		session.flush()
 	} else {
-		session.reply(502, fmt.Sprintf("%s", err))
+		session.reply(502, err.Error())
 	}
 }
 
