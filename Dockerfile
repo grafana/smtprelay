@@ -21,6 +21,9 @@ RUN bin/smtprelay --version
 
 FROM alpine:3.19 AS runtime
 
+# temporary fix for CVE-2023-6129 and CVE-2023-6237
+RUN apk upgrade --no-cache libcrypto3 libssl3
+
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=build /go/src/github.com/grafana/smtprelay/bin/smtprelay /usr/local/bin/smtprelay
 
