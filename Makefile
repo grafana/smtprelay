@@ -47,3 +47,7 @@ docker-push: docker-tag
 .PHONY: lint
 lint:
 	@golangci-lint run --max-same-issues=0 --max-issues-per-linter=0 -v
+
+.PHONY: release
+release:
+	@go run ./scripts/version.go -release
