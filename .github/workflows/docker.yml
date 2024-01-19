@@ -46,4 +46,4 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Push images to Docker Hub (on tags only)
         if: startsWith(github.ref, 'refs/tags/v')
-        run: make push-docker
+        run: make docker-push
