@@ -58,7 +58,7 @@ func InitTraceExporter(ctx context.Context, serviceName string, batchOptions ...
 	otel.SetTextMapPropagator(propagation.TraceContext{})
 
 	otel.SetErrorHandler(otelErrHandler(func(err error) {
-		logger.ErrorContext(ctx, "OTel error", err)
+		logger.ErrorContext(ctx, "OTel error", slog.Any("error", err))
 	}))
 
 	shutdown := func(ctx context.Context) error {
