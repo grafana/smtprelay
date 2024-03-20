@@ -14,12 +14,14 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/version"
+	"go.opentelemetry.io/otel/trace"
 )
 
 var (
 	requestsCounter   prometheus.Counter
 	errorsCounter     *prometheus.CounterVec
 	durationHistogram *prometheus.HistogramVec
+	durationNative    *prometheus.HistogramVec
 	msgSizeHistogram  prometheus.Histogram
 )
 
@@ -42,12 +44,24 @@ func init() {
 		Help:      "count of unsuccessfully relayed messages",
 	}, []string{"error_code"})
 
+	// TODO: remove this
 	durationHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Namespace: ns,
 		Name:      "request_duration",
 		Help:      "duration of message relay requests",
 		Buckets:   prometheus.DefBuckets,
 	}, []string{"error_code"})
+
+	durationNative = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace:                       ns,
+		Subsystem:                       "relay",
+		Name:                            "duration_seconds",
+		Help:                            "duration of message relay requests",
+		Buckets:                         prometheus.DefBuckets,
+		NativeHistogramBucketFactor:     1.1,
+		NativeHistogramMaxBucketNumber:  160,
+		NativeHistogramMinResetDuration: 1 * time.Hour,
+	}, []string{"status_code"})
 
 	msgSizeHistogram = prometheus.NewHistogram(prometheus.HistogramOpts{
 		Namespace: ns,
@@ -67,6 +81,10 @@ func registerMetrics(registry prometheus.Registerer) error {
 		return err
 	}
 	err = registry.Register(durationHistogram)
+	if err != nil {
+		return err
+	}
+	err = registry.Register(durationNative)
 	if err != nil {
 		return err
 	}
@@ -138,4 +156,19 @@ type instrumentationServer struct {
 
 func (m *instrumentationServer) Stop() {
 	m.srv.Close()
+}
+
+// observeDuration records the duration of a message relay request.
+func observeDuration(ctx context.Context, statusCode int, duration time.Duration) {
+	traceID := trace.SpanFromContext(ctx).SpanContext().TraceID()
+	exemplarLabels := prometheus.Labels{}
+	if traceID.IsValid() {
+		exemplarLabels["traceID"] = traceID.String()
+	}
+
+	durHist := durationNative.WithLabelValues(fmt.Sprintf("%d", statusCode)).(prometheus.ExemplarObserver)
+	durHist.ObserveWithExemplar(duration.Seconds(), exemplarLabels)
+
+	// legacy metric doesn't get exemplar - it's going away
+	durationHistogram.WithLabelValues(fmt.Sprintf("%d", statusCode)).Observe(duration.Seconds())
 }
