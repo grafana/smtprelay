@@ -258,7 +258,7 @@ func TestListenAndServe(t *testing.T) {
 
 func TestSTARTTLS(t *testing.T) {
 	addr, closer := runsslserver(t, &smtpd.Server{
-		Authenticator:  func(ctx context.Context, peer smtpd.Peer, username, password string) error { return nil },
+		Authenticator:  func(_ context.Context, _ smtpd.Peer, _, _ string) error { return nil },
 		ForceTLS:       true,
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
@@ -327,7 +327,7 @@ func TestSTARTTLS(t *testing.T) {
 
 func TestAuthRejection(t *testing.T) {
 	addr, closer := runsslserver(t, &smtpd.Server{
-		Authenticator: func(ctx context.Context, peer smtpd.Peer, username, password string) error {
+		Authenticator: func(_ context.Context, _ smtpd.Peer, _, _ string) error {
 			return smtpd.ErrAuthInvalid
 		},
 		ForceTLS:       true,
@@ -364,7 +364,7 @@ func TestAuthNotSupported(t *testing.T) {
 
 func TestAuthBypass(t *testing.T) {
 	addr, closer := runsslserver(t, &smtpd.Server{
-		Authenticator: func(ctx context.Context, peer smtpd.Peer, username, password string) error {
+		Authenticator: func(_ context.Context, _ smtpd.Peer, _, _ string) error {
 			return smtpd.ErrAuthInvalid
 		},
 		ForceTLS:       true,
@@ -384,7 +384,7 @@ func TestAuthBypass(t *testing.T) {
 
 func TestConnectionCheck(t *testing.T) {
 	addr, closer := runserver(t, &smtpd.Server{
-		ConnectionChecker: func(ctx context.Context, peer smtpd.Peer) error {
+		ConnectionChecker: func(_ context.Context, _ smtpd.Peer) error {
 			return smtpd.ErrIPDenied
 		},
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
@@ -397,7 +397,7 @@ func TestConnectionCheck(t *testing.T) {
 
 func TestConnectionCheckSimpleError(t *testing.T) {
 	addr, closer := runserver(t, &smtpd.Server{
-		ConnectionChecker: func(ctx context.Context, peer smtpd.Peer) error {
+		ConnectionChecker: func(_ context.Context, _ smtpd.Peer) error {
 			return errors.New("Denied")
 		},
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
@@ -410,7 +410,7 @@ func TestConnectionCheckSimpleError(t *testing.T) {
 
 func TestHELOCheck(t *testing.T) {
 	addr, closer := runserver(t, &smtpd.Server{
-		HeloChecker: func(ctx context.Context, peer smtpd.Peer, name string) error {
+		HeloChecker: func(_ context.Context, _ smtpd.Peer, name string) error {
 			require.Equal(t, "foobar.local", name)
 			return smtpd.ErrUnsupportedCommand
 		},
@@ -428,7 +428,7 @@ func TestHELOCheck(t *testing.T) {
 
 func TestSenderCheck(t *testing.T) {
 	addr, closer := runserver(t, &smtpd.Server{
-		SenderChecker: func(ctx context.Context, peer smtpd.Peer, addr string) error {
+		SenderChecker: func(_ context.Context, _ smtpd.Peer, _ string) error {
 			return smtpd.ErrSenderDenied
 		},
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
@@ -444,7 +444,7 @@ func TestSenderCheck(t *testing.T) {
 
 func TestRecipientCheck(t *testing.T) {
 	addr, closer := runserver(t, &smtpd.Server{
-		RecipientChecker: func(ctx context.Context, peer smtpd.Peer, addr string) error {
+		RecipientChecker: func(_ context.Context, _ smtpd.Peer, _ string) error {
 			return smtpd.ErrRecipientDenied
 		},
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
@@ -495,7 +495,7 @@ func TestHandler(t *testing.T) {
 	body := "This is the email body"
 
 	addr, closer := runserver(t, &smtpd.Server{
-		Handler: func(ctx context.Context, peer smtpd.Peer, env smtpd.Envelope) error {
+		Handler: func(_ context.Context, _ smtpd.Peer, env smtpd.Envelope) error {
 			assert.Equal(t, "sender@example.org", env.Sender)
 			assert.Len(t, env.Recipients, 1)
 			assert.Equal(t, "recipient@example.net", env.Recipients[0])
@@ -529,7 +529,7 @@ func TestHandler(t *testing.T) {
 
 func TestRejectHandler(t *testing.T) {
 	addr, closer := runserver(t, &smtpd.Server{
-		Handler: func(ctx context.Context, peer smtpd.Peer, env smtpd.Envelope) error {
+		Handler: func(_ context.Context, _ smtpd.Peer, _ smtpd.Envelope) error {
 			return smtpd.ErrTooBig
 		},
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
@@ -688,7 +688,7 @@ func TestDATAbeforeRCPT(t *testing.T) {
 
 func TestInterruptedDATA(t *testing.T) {
 	addr, closer := runserver(t, &smtpd.Server{
-		Handler: func(ctx context.Context, peer smtpd.Peer, env smtpd.Envelope) error {
+		Handler: func(_ context.Context, _ smtpd.Peer, _ smtpd.Envelope) error {
 			t.Fatal("Accepted DATA despite disconnection")
 			return nil
 		},
@@ -802,11 +802,12 @@ func TestLongLine(t *testing.T) {
 func TestXCLIENT(t *testing.T) {
 	addr, closer := runserver(t, &smtpd.Server{
 		EnableXCLIENT: true,
-		SenderChecker: func(ctx context.Context, peer smtpd.Peer, addr string) error {
+		SenderChecker: func(_ context.Context, peer smtpd.Peer, addr string) error {
 			require.Equal(t, "new.example.net", peer.HeloName)
 			require.Equal(t, "42.42.42.42:4242", peer.Addr.String())
 			require.Equal(t, "newusername", peer.Username)
 			require.Equal(t, smtpd.SMTP, peer.Protocol)
+			require.Equal(t, "sender@example.org", addr)
 
 			return nil
 		},
@@ -848,7 +849,7 @@ func TestXCLIENT(t *testing.T) {
 func TestEnvelopeReceived(t *testing.T) {
 	addr, closer := runsslserver(t, &smtpd.Server{
 		Hostname: "foobar.example.net",
-		Handler: func(ctx context.Context, peer smtpd.Peer, env smtpd.Envelope) error {
+		Handler: func(_ context.Context, peer smtpd.Peer, env smtpd.Envelope) error {
 			env.AddReceivedLine(peer)
 			if !bytes.HasPrefix(env.Data, []byte("Received: from localhost ([127.0.0.1]) by foobar.example.net with ESMTP;")) {
 				t.Fatal("Wrong received line.")
@@ -913,7 +914,7 @@ func TestHELO(t *testing.T) {
 
 func TestLOGINAuth(t *testing.T) {
 	addr, closer := runsslserver(t, &smtpd.Server{
-		Authenticator:  func(ctx context.Context, peer smtpd.Peer, username, password string) error { return nil },
+		Authenticator:  func(_ context.Context, _ smtpd.Peer, _, _ string) error { return nil },
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
 
@@ -988,7 +989,7 @@ func TestErrors(t *testing.T) {
 	require.NoError(t, err)
 
 	server := &smtpd.Server{
-		Authenticator:  func(ctx context.Context, peer smtpd.Peer, username, password string) error { return nil },
+		Authenticator:  func(_ context.Context, _ smtpd.Peer, _, _ string) error { return nil },
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	}
 
@@ -1048,7 +1049,7 @@ func TestErrors(t *testing.T) {
 
 func TestMalformedMAILFROM(t *testing.T) {
 	addr, closer := runserver(t, &smtpd.Server{
-		SenderChecker: func(ctx context.Context, peer smtpd.Peer, addr string) error {
+		SenderChecker: func(_ context.Context, _ smtpd.Peer, addr string) error {
 			if addr != "test@example.org" {
 				return smtpd.ErrRecipientDenied
 			}
@@ -1091,7 +1092,7 @@ func TestTLSListener(t *testing.T) {
 	addr := ln.Addr().String()
 
 	server := &smtpd.Server{
-		Authenticator: func(ctx context.Context, peer smtpd.Peer, username, password string) error {
+		Authenticator: func(_ context.Context, peer smtpd.Peer, _, _ string) error {
 			require.NotNil(t, peer.TLS, "didn't correctly set connection state on TLS connection")
 			return nil
 		},
@@ -1316,7 +1317,7 @@ func TestServe_Context(t *testing.T) {
 
 	t.Run("connection context cancelled doesn't close server", func(t *testing.T) {
 		server := &smtpd.Server{
-			ConnContext: func(ctx context.Context, conn net.Conn) context.Context {
+			ConnContext: func(ctx context.Context, _ net.Conn) context.Context {
 				ctx, cancel := context.WithCancel(ctx)
 				cancel()
 				return ctx

@@ -27,23 +27,23 @@ func startTestSMTPServer(ctx context.Context, t *testing.T) *testSMTPServer {
 
 	msgs := &[]smtpd.Envelope{}
 	srv := &smtpd.Server{
-		ConnectionChecker: func(ctx context.Context, peer smtpd.Peer) error {
+		ConnectionChecker: func(_ context.Context, peer smtpd.Peer) error {
 			t.Logf("Connection from %s", peer.HeloName)
 			return nil
 		},
-		HeloChecker: func(ctx context.Context, peer smtpd.Peer, name string) error {
+		HeloChecker: func(_ context.Context, peer smtpd.Peer, name string) error {
 			t.Logf("HELO (%s) %s", peer.Protocol, name)
 			return nil
 		},
-		SenderChecker: func(ctx context.Context, peer smtpd.Peer, addr string) error {
+		SenderChecker: func(_ context.Context, _ smtpd.Peer, addr string) error {
 			t.Logf("MAIL FROM %s", addr)
 			return nil
 		},
-		RecipientChecker: func(ctx context.Context, peer smtpd.Peer, addr string) error {
+		RecipientChecker: func(_ context.Context, _ smtpd.Peer, addr string) error {
 			t.Logf("RCPT TO %s", addr)
 			return nil
 		},
-		Handler: func(ctx context.Context, peer smtpd.Peer, env smtpd.Envelope) error {
+		Handler: func(_ context.Context, _ smtpd.Peer, env smtpd.Envelope) error {
 			t.Logf("DATA\n----\n%s\n----", env.Data)
 			m := append(*msgs, env)
 			*msgs = m

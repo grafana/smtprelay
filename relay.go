@@ -228,7 +228,7 @@ func (r *relay) senderChecker(allowedSender, allowedUsers string) func(ctx conte
 func (r *relay) recipientChecker(allowed, denied string) func(ctx context.Context, peer smtpd.Peer, addr string) error {
 	log := slog.With(slog.String("component", "recipient_checker"))
 
-	return func(ctx context.Context, peer smtpd.Peer, addr string) error {
+	return func(ctx context.Context, _ smtpd.Peer, addr string) error {
 		// First, we check the deny list as that one takes precedence.
 		if denied != "" {
 			// TODO: precompile this regexp and reject it at config time
