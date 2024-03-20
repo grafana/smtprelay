@@ -331,8 +331,8 @@ func (r *relay) mailHandler(cfg *config) func(ctx context.Context, peer smtpd.Pe
 
 		defer func() {
 			span.SetAttributes(traceutil.StatusCode(statusCode))
-			durationHistogram.WithLabelValues(fmt.Sprintf("%d", statusCode)).
-				Observe(time.Since(start).Seconds())
+
+			observeDuration(ctx, statusCode, time.Since(start))
 		}()
 
 		err = smtp.SendMail(
