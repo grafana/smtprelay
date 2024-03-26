@@ -35,7 +35,7 @@ func InitTraceExporter(ctx context.Context, serviceName string, batchOptions ...
 	// OTEL_SDK_DISABLED is not supported by the Go SDK, but is a standard env
 	// var defined by the OTel spec. We'll use it to disable the trace provider.
 	if disabled, _ := strconv.ParseBool(os.Getenv("OTEL_SDK_DISABLED")); disabled {
-		logger.Debug("Tracing disabled by environment variable")
+		logger.Debug("Tracing disabled by environment variable OTEL_SDK_DISABLED")
 		return func(context.Context) error { return nil }, nil
 	}
 
