@@ -68,6 +68,8 @@ exporter can be configured with environment variables, such as
 using the Jaeger sampler manager API. Set the sampling server URL with
 `JAEGER_SAMPLER_MANAGER_HOST_PORT`.
 
+To disable tracing, set `OTEL_SDK_DISABLED` to `"true"`.
+
 Trace propagation uses the W3C Trace Context format, using email MIME headers
 as carriers. The header are assumed to be `traceparent` and `tracestate`.
 

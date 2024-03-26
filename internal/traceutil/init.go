@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"runtime/debug"
+	"strconv"
 	"time"
 
 	"github.com/prometheus/common/version"
@@ -30,6 +31,13 @@ func InitTraceExporter(ctx context.Context, serviceName string, batchOptions ...
 	ctx = context.WithoutCancel(ctx)
 
 	logger := slog.With("component", "trace")
+
+	// OTEL_SDK_DISABLED is not supported by the Go SDK, but is a standard env
+	// var defined by the OTel spec. We'll use it to disable the trace provider.
+	if disabled, _ := strconv.ParseBool(os.Getenv("OTEL_SDK_DISABLED")); disabled {
+		logger.Debug("Tracing disabled by environment variable")
+		return func(context.Context) error { return nil }, nil
+	}
 
 	var exporter sdktrace.SpanExporter
 
