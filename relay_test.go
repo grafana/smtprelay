@@ -90,7 +90,7 @@ func TestAddLogHeaderFields(t *testing.T) {
 	out := &bytes.Buffer{}
 	logger := slog.New(slog.NewTextHandler(out, &slog.HandlerOptions{
 		// remove time, level, and msg for simpler testing
-		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+		ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
 			switch a.Key {
 			case "time", "level", "msg":
 				return slog.Attr{}
