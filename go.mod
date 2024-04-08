@@ -10,11 +10,11 @@ require (
 	github.com/prometheus/common v0.52.2
 	github.com/stretchr/testify v1.9.0
 	github.com/vharitonsky/iniflags v0.0.0-20180513140207-a33cd0b5f3de
-	go.opentelemetry.io/contrib/samplers/jaegerremote v0.18.0
-	go.opentelemetry.io/otel v1.24.0
+	go.opentelemetry.io/contrib/samplers/jaegerremote v0.19.0
+	go.opentelemetry.io/otel v1.25.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.24.0
-	go.opentelemetry.io/otel/sdk v1.24.0
-	go.opentelemetry.io/otel/trace v1.24.0
+	go.opentelemetry.io/otel/sdk v1.25.0
+	go.opentelemetry.io/otel/trace v1.25.0
 	golang.org/x/crypto v0.22.0
 )
 
@@ -33,7 +33,7 @@ require (
 	github.com/prometheus/client_model v0.6.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.24.0 // indirect
-	go.opentelemetry.io/otel/metric v1.24.0 // indirect
+	go.opentelemetry.io/otel/metric v1.25.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.1.0 // indirect
 	golang.org/x/net v0.22.0 // indirect
 	golang.org/x/sys v0.19.0 // indirect
