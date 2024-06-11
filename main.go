@@ -11,14 +11,14 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/grafana/smtprelay/internal/smtpd"
-	"github.com/grafana/smtprelay/internal/traceutil"
+	"github.com/grafana/smtprelay/v2/internal/smtpd"
+	"github.com/grafana/smtprelay/v2/internal/traceutil"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/version"
 	"go.opentelemetry.io/otel"
 )
 
-var tracer = otel.Tracer("github.com/grafana/smtprelay")
+var tracer = otel.Tracer("github.com/grafana/smtprelay/v2")
 
 // metrics registry - overridable for tests
 var metricsRegistry = prometheus.DefaultRegisterer

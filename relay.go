@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/grafana/smtprelay/internal/smtpd"
-	"github.com/grafana/smtprelay/internal/traceutil"
+	"github.com/grafana/smtprelay/v2/internal/smtpd"
+	"github.com/grafana/smtprelay/v2/internal/traceutil"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
