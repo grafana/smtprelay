@@ -18,7 +18,7 @@ import (
 	"go.opentelemetry.io/otel"
 )
 
-var tracer = otel.Tracer("github.com/grafana/smtprelay/internal/smtpd")
+var tracer = otel.Tracer("github.com/grafana/smtprelay/v2/internal/smtpd")
 
 // Server defines the parameters for running the SMTP server
 //
