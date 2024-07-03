@@ -1,0 +1,44 @@
+name: Deploy
+
+on:
+  push:
+    tags:
+      - v[0-9]+.[0-9]+.[0-9]+
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  push-docker:
+    runs-on: ubuntu-latest
+    env:
+      DOCKER_BUILDKIT: 1
+    outputs:
+      image_version: ${{ steps.push.outputs.image_version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log in to Docker Hub (on tags only)
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Push images to Docker Hub (on tags only)
+        id: push
+        run: |
+          make docker-push
+          echo "image_version=$(cat smtprelay.version)" >> "$GITHUB_OUTPUT"
+  deploy-dev:
+    runs-on: ubuntu-latest
+    environment:
+      name: dev
+    needs: push-docker
+    steps:
+      - name: Trigger CD workflow
+        uses: grafana/shared-workflows/actions/trigger-argo-workflow@main
+        with:
+          instance: ops
+          namespace: hosted-grafana-cd
+          workflow_template: smtprelay
+          parameters: |
+            dockertag=${{ needs.push-docker.outputs.image_version }}

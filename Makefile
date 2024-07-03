@@ -21,6 +21,7 @@ build: $(BIN_DIR)/smtprelay
 clean:
 	@rm -rf $(BIN_DIR)
 	@rm -rf *.out
+	@rm -rf smtprelay.version
 
 .PHONY: test
 test:
@@ -36,8 +37,11 @@ docker:
 		.
 
 .PHONY: docker-tag
-docker-tag: docker
+docker-tag: smtprelay.version
+
+smtprelay.version: docker
 	docker tag $(DOCKER_IMAGE) $(DOCKER_IMAGE):$(VERSION)
+	echo "$(VERSION)" > $@
 
 .PHONY: docker-push
 docker-push: docker-tag
