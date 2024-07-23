@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.2](https://github.com/grafana/smtprelay/compare/v2.1.1...v2.1.2) (2024-07-23)
+
+
+### Bug Fixes
+
+* **ci:** Attempt to fix deploy workflow ([#153](https://github.com/grafana/smtprelay/issues/153)) ([90a4e02](https://github.com/grafana/smtprelay/commit/90a4e0298922ab96f59fc4b9cadd0132c2901161))
+
 ## [2.1.1](https://github.com/grafana/smtprelay/compare/v2.1.0...v2.1.1) (2024-07-23)
 
 
