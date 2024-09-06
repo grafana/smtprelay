@@ -1,11 +1,6 @@
 linters-settings:
   govet:
     enable-all: true
-  gocyclo:
-    min-complexity: 10
-  gocritic:
-    disabled-checks:
-      - commentFormatting
   dupl:
     threshold: 100
   goconst:
@@ -18,11 +13,6 @@ linters-settings:
     allow-unused: false # report any unused nolint directives
     require-explanation: false # don't require an explanation for nolint directives
     require-specific: false # don't require nolint directives to be specific about which linter is being skipped
-  errcheck:
-    exclude-functions:
-      - io/ioutil.WriteFile
-      - io/ioutil.ReadFile
-      - io.Copy
   gocognit:
     min-complexity: 31
   gomoddirectives:
@@ -43,6 +33,7 @@ linters:
     - bodyclose
     - containedctx
     - contextcheck
+    - copyloopvar
     - depguard
     - dupl
     - dupword
@@ -50,7 +41,6 @@ linters:
     - errcheck
     - errname
     - errorlint
-    - exportloopref
     - gocognit
     - goconst
     - gocritic
