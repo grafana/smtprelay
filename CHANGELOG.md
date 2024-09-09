@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.1.3](https://github.com/grafana/smtprelay/compare/v2.1.2...v2.1.3) (2024-09-06)
+
+
+### Dependencies
+
+* **docker:** bump golang from 1.22-alpine to 1.23-alpine ([#156](https://github.com/grafana/smtprelay/issues/156)) ([2dd628e](https://github.com/grafana/smtprelay/commit/2dd628edc0f4bb73fab802cc35bd2d20df656152))
+* **go:** bump github.com/grafana/pyroscope-go/godeltaprof ([#158](https://github.com/grafana/smtprelay/issues/158)) ([7ecbd62](https://github.com/grafana/smtprelay/commit/7ecbd62bbf968ae2c2a5ec0d41e067086c0e760b))
+* **go:** bump github.com/prometheus/client_golang from 1.19.1 to 1.20.3 ([#170](https://github.com/grafana/smtprelay/issues/170)) ([ce4a641](https://github.com/grafana/smtprelay/commit/ce4a641d9250ec3bfd305166a475c50a5cf23381))
+* **go:** bump go.opentelemetry.io/otel from 1.28.0 to 1.29.0 ([#161](https://github.com/grafana/smtprelay/issues/161)) ([aeae268](https://github.com/grafana/smtprelay/commit/aeae26841dd3cb8a657bff17ac66f8a503ac8c3b))
+* **go:** Bump supported Go version to 1.23.1 ([#173](https://github.com/grafana/smtprelay/issues/173)) ([f0b6d5f](https://github.com/grafana/smtprelay/commit/f0b6d5f1b6bafe112e48f7fa38d277d46ed00926))
+
 ## [2.1.2](https://github.com/grafana/smtprelay/compare/v2.1.1...v2.1.2) (2024-07-23)
 
 
