@@ -10,7 +10,7 @@ require (
 	github.com/prometheus/common v0.59.1
 	github.com/stretchr/testify v1.9.0
 	github.com/vharitonsky/iniflags v0.0.0-20180513140207-a33cd0b5f3de
-	go.opentelemetry.io/contrib/samplers/jaegerremote v0.23.0
+	go.opentelemetry.io/contrib/samplers/jaegerremote v0.24.0
 	go.opentelemetry.io/otel v1.30.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.30.0
 	go.opentelemetry.io/otel/sdk v1.30.0
