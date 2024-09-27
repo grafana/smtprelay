@@ -13,7 +13,7 @@ require (
 	go.opentelemetry.io/contrib/samplers/jaegerremote v0.23.0
 	go.opentelemetry.io/otel v1.30.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.29.0
-	go.opentelemetry.io/otel/sdk v1.29.0
+	go.opentelemetry.io/otel/sdk v1.30.0
 	go.opentelemetry.io/otel/trace v1.30.0
 	golang.org/x/crypto v0.27.0
 )
