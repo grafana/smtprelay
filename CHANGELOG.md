@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.1.4](https://github.com/grafana/smtprelay/compare/v2.1.3...v2.1.4) (2024-10-17)
+
+
+### Dependencies
+
+* **go:** bump github.com/prometheus/client_golang from 1.20.3 to 1.20.5 ([#189](https://github.com/grafana/smtprelay/issues/189)) ([b0a37e2](https://github.com/grafana/smtprelay/commit/b0a37e2b4fdcc5be556f2c2f11dcc660085fdb95))
+* **go:** bump github.com/prometheus/common from 0.59.1 to 0.60.0 ([#182](https://github.com/grafana/smtprelay/issues/182)) ([c75e44f](https://github.com/grafana/smtprelay/commit/c75e44fa578b77f0c9636d680cc1cc3026a0b958))
+* **go:** bump go.opentelemetry.io/contrib/samplers/jaegerremote ([#188](https://github.com/grafana/smtprelay/issues/188)) ([cf2a270](https://github.com/grafana/smtprelay/commit/cf2a2703080563e8bfbcba560d9891be92a2151c))
+* **go:** bump go.opentelemetry.io/otel from 1.29.0 to 1.30.0 ([#175](https://github.com/grafana/smtprelay/issues/175)) ([92fc713](https://github.com/grafana/smtprelay/commit/92fc713b96e76e3028be4168c33f0740cd63cde4))
+* **go:** bump go.opentelemetry.io/otel from 1.30.0 to 1.31.0 ([#185](https://github.com/grafana/smtprelay/issues/185)) ([644f587](https://github.com/grafana/smtprelay/commit/644f587350d1490edb200f41a3c8198b03ca4e6b))
+* **go:** bump go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc ([#177](https://github.com/grafana/smtprelay/issues/177)) ([9828d91](https://github.com/grafana/smtprelay/commit/9828d915c5bb440c39476df27794faf8e4550db1))
+* **go:** bump go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc ([#187](https://github.com/grafana/smtprelay/issues/187)) ([d6b499a](https://github.com/grafana/smtprelay/commit/d6b499af8ed35e466d40ee352f77281b846b75dd))
+
 ## [2.1.3](https://github.com/grafana/smtprelay/compare/v2.1.2...v2.1.3) (2024-09-06)
 
 
