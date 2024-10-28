@@ -13,24 +13,41 @@ jobs:
       DOCKER_BUILDKIT: 1
     steps:
       - uses: actions/checkout@v4
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@v0.2.2
+        with:
+          version: v0.56.2
+          cache: true
+      - name: Download Trivy DB
+        run: |
+          trivy fs --no-progress --download-db-only --db-repository public.ecr.aws/aquasecurity/trivy-db
       - run: make docker
       - name: Run Trivy vulnerability scanner (table output)
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: grafana/smtprelay
-          format: table
-          exit-code: 1
-          ignore-unfixed: true
-          vuln-type: os,library
-          severity: CRITICAL,HIGH
+        # Use the trivy binary rather than the aquasecurity/trivy-action action
+        # to avoid a few bugs
+        run: |
+          trivy image \
+            --scanners vuln \
+            --format table \
+            --exit-code 1 \
+            --ignore-unfixed \
+            --pkg-types os,library \
+            --severity CRITICAL,HIGH \
+            --ignorefile .trivyignore \
+            --skip-db-update \
+            grafana/smtprelay
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: grafana/smtprelay
-          format: sarif
-          output: trivy-results.sarif
-          ignore-unfixed: true
-          vuln-type: os,library
+        # Use the trivy binary rather than the aquasecurity/trivy-action action
+        # to avoid a few bugs
+        run: |
+          trivy image \
+            --scanners vuln \
+            --format sarif \
+            --output trivy-results.sarif \
+            --ignore-unfixed \
+            --pkg-types os,library \
+            --skip-db-update \
+            grafana/smtprelay
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
         with:
