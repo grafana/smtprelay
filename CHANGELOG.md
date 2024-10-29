@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.1.5](https://github.com/grafana/smtprelay/compare/v2.1.4...v2.1.5) (2024-10-28)
+
+
+### Bug Fixes
+
+* **auth:** AuthFetch: comparing authenticating user to user from allowed_user file ([46044aa](https://github.com/grafana/smtprelay/commit/46044aa845f33edb3a5f411d2cc5fce5368cf2bf))
+
+
+### Dependencies
+
+* **go:** bump github.com/prometheus/common from 0.60.0 to 0.60.1 ([#190](https://github.com/grafana/smtprelay/issues/190)) ([92443cd](https://github.com/grafana/smtprelay/commit/92443cd9337d78bdbe8f2cde9d25b58df180b33e))
+
 ## [2.1.4](https://github.com/grafana/smtprelay/compare/v2.1.3...v2.1.4) (2024-10-17)
 
 
