@@ -22,6 +22,7 @@ type config struct {
 	localCert         string
 	localKey          string
 	localForceTLS     bool
+	tlsMinVersion     string
 	allowedNetsStr    string
 	allowedSender     string
 	allowedRecipients string
@@ -108,6 +109,7 @@ func registerFlags(f *flag.FlagSet, cfg *config) {
 	f.StringVar(&cfg.localCert, "local_cert", "", "SSL certificate for STARTTLS/TLS")
 	f.StringVar(&cfg.localKey, "local_key", "", "SSL private key for STARTTLS/TLS")
 	f.BoolVar(&cfg.localForceTLS, "local_forcetls", false, "Force STARTTLS (needs local_cert and local_key)")
+	f.StringVar(&cfg.tlsMinVersion, "tls_min_version", "tls1.2", "Min TLS version to accept from incoming SMTP clients")
 	f.StringVar(&cfg.allowedNetsStr, "allowed_nets", "127.0.0.0/8 ::/128", "Networks allowed to send mails (set to \"\" to disable")
 	f.StringVar(&cfg.allowedSender, "allowed_sender", "", "Regular expression for valid FROM email addresses (leave empty to allow any sender)")
 	f.StringVar(&cfg.allowedRecipients, "allowed_recipients", "", "Regular expression for valid 'to' email addresses (leave empty to allow any recipient)")
