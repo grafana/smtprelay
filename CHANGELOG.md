@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.1.6](https://github.com/grafana/smtprelay/compare/v2.1.5...v2.1.6) (2024-11-26)
+
+
+### Dependencies
+
+* **go:** bump github.com/stretchr/testify from 1.9.0 to 1.10.0 ([#201](https://github.com/grafana/smtprelay/issues/201)) ([0bc1c95](https://github.com/grafana/smtprelay/commit/0bc1c95638c01fd38b3dfb27a9462dfb2b845fec))
+* **go:** bump go.opentelemetry.io/contrib/samplers/jaegerremote ([#198](https://github.com/grafana/smtprelay/issues/198)) ([76ba49c](https://github.com/grafana/smtprelay/commit/76ba49cb794a7f9aedc2f2e5ad137aad82f9efc1))
+* **go:** bump go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc ([#199](https://github.com/grafana/smtprelay/issues/199)) ([7778f42](https://github.com/grafana/smtprelay/commit/7778f4293a78a3a9b4147eda9c3b0e769acfa2dc))
+* **go:** bump go.opentelemetry.io/otel/sdk from 1.31.0 to 1.32.0 ([#197](https://github.com/grafana/smtprelay/issues/197)) ([ada354e](https://github.com/grafana/smtprelay/commit/ada354e1723ae05c5ad3b5b71ee7998b3c722a03))
+* **go:** bump golang.org/x/crypto from 0.28.0 to 0.29.0 ([#195](https://github.com/grafana/smtprelay/issues/195)) ([0c5d5f4](https://github.com/grafana/smtprelay/commit/0c5d5f43f8b0da2ad1106c0bd0e79bd897ee1638))
+
 ## [2.1.5](https://github.com/grafana/smtprelay/compare/v2.1.4...v2.1.5) (2024-10-28)
 
 
