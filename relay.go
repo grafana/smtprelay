@@ -104,7 +104,7 @@ func (r *relay) listen(address string) (net.Listener, error) {
 		}
 		ln = listener
 	case strings.HasPrefix(address, "starttls://"):
-		tlsConfig, err := getServerTLSConfig(r.cfg.localCert, r.cfg.localKey)
+		tlsConfig, err := getServerTLSConfig(r.cfg.localCert, r.cfg.localKey, r.cfg.tlsMinVersion)
 		if err != nil {
 			return nil, fmt.Errorf("error getting Server TLS config: %w", err)
 		}
@@ -121,7 +121,7 @@ func (r *relay) listen(address string) (net.Listener, error) {
 		ln = listener
 	case strings.HasPrefix(address, "tls://"):
 		// TODO: deprecate this in favor of starttls://
-		tlsConfig, err := getServerTLSConfig(r.cfg.localCert, r.cfg.localKey)
+		tlsConfig, err := getServerTLSConfig(r.cfg.localCert, r.cfg.localKey, r.cfg.tlsMinVersion)
 		if err != nil {
 			return nil, fmt.Errorf("error getting Server TLS config: %w", err)
 		}
@@ -451,7 +451,7 @@ func generateUUID() string {
 	return uniqueID.String()
 }
 
-func getServerTLSConfig(certpath, keypath string) (*tls.Config, error) {
+func getServerTLSConfig(certpath, keypath, tlsMinVersion string) (*tls.Config, error) {
 	if certpath == "" {
 		return nil, fmt.Errorf("empty local_cert")
 	}
@@ -466,7 +466,23 @@ func getServerTLSConfig(certpath, keypath string) (*tls.Config, error) {
 	}
 
 	return &tls.Config{
-		MinVersion:   tls.VersionTLS12,
+		MinVersion:   getTLSMinVersion(tlsMinVersion),
 		Certificates: []tls.Certificate{cert},
 	}, nil
+}
+
+func getTLSMinVersion(version string) uint16 {
+	switch version {
+	case "tls1.0":
+		return tls.VersionTLS10
+	case "tls1.1":
+		return tls.VersionTLS11
+	case "tls1.2":
+		return tls.VersionTLS12
+	case "tls1.3":
+		return tls.VersionTLS13
+	default:
+		slog.Warn(fmt.Sprintf("Unrecognized or unsupported TLS version: '%s', defaulting to TLS 1.2", version))
+		return tls.VersionTLS12
+	}
 }
