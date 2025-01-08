@@ -7,6 +7,10 @@ updates:
   open-pull-requests-limit: 10
   commit-message:
     prefix: deps(go)
+  groups:
+    go.opentelemetry.io:
+      patterns:
+        - "go.opentelemetry.io/*"
 - package-ecosystem: docker
   directory: /
   schedule:
