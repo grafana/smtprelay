@@ -473,7 +473,7 @@ func (session *session) handleXCLIENT(ctx context.Context, cmd command) {
 		newHeloName, newUsername string
 		newProto                 Protocol
 		newAddr                  net.IP
-		newTCPPort               uint64
+		newTCPPort               uint16
 	)
 
 	for _, item := range cmd.fields[1:] {
@@ -500,13 +500,13 @@ func (session *session) handleXCLIENT(ctx context.Context, cmd command) {
 			newAddr = net.ParseIP(value)
 			continue
 		case "PORT":
-			var err error
-			newTCPPort, err = strconv.ParseUint(value, 10, 16)
+			n, err := strconv.ParseUint(value, 10, 16)
 			if err != nil {
 				session.error(ErrMalformedCommand)
 
 				return
 			}
+			newTCPPort = uint16(n)
 			continue
 		case "LOGIN":
 			newUsername = value
@@ -565,19 +565,14 @@ func (session *session) handlePROXY(ctx context.Context, cmd command) {
 		return
 	}
 
-	var (
-		newAddr    net.IP
-		newTCPPort uint64
-		err        error
-	)
+	newAddr := net.ParseIP(cmd.fields[2])
 
-	newAddr = net.ParseIP(cmd.fields[2])
-
-	newTCPPort, err = strconv.ParseUint(cmd.fields[4], 10, 16)
+	n, err := strconv.ParseUint(cmd.fields[4], 10, 16)
 	if err != nil {
 		session.error(ErrMalformedCommand)
 		return
 	}
+	newTCPPort := uint16(n)
 
 	tcpAddr, ok := session.peer.Addr.(*net.TCPAddr)
 	if !ok {
