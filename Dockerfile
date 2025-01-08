@@ -19,7 +19,7 @@ RUN make build
 # sanity check - make sure the binary runs and is executable
 RUN bin/smtprelay --version
 
-FROM alpine:3.20 AS runtime
+FROM alpine:3.21 AS runtime
 
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=build /go/src/github.com/grafana/smtprelay/bin/smtprelay /usr/local/bin/smtprelay
