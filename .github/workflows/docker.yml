@@ -16,7 +16,7 @@ jobs:
       - name: Install Trivy
         uses: aquasecurity/setup-trivy@v0.2.2
         with:
-          version: v0.56.2
+          version: v0.58.2
           cache: true
       - name: Download Trivy DB
         run: |
