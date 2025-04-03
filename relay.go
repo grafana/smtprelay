@@ -466,7 +466,6 @@ func getServerTLSConfig(certpath, keypath string) (*tls.Config, error) {
 	}
 
 	return &tls.Config{
-		MinVersion:   tls.VersionTLS12,
 		Certificates: []tls.Certificate{cert},
 	}, nil
 }
