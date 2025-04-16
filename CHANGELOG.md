@@ -1,5 +1,43 @@
 # Changelog
 
+## [2.2.0](https://github.com/grafana/smtprelay/compare/v2.1.5...v2.2.0) (2025-04-16)
+
+
+### Features
+
+* Do not hardcode TLS MinVersion and delegate it to Go version ([#230](https://github.com/grafana/smtprelay/issues/230)) ([b28bd65](https://github.com/grafana/smtprelay/commit/b28bd654b4c082c6d842d83df85744e6b35b03ec))
+
+
+### Dependencies
+
+* **actions:** bump actions/create-github-app-token from 1 to 2 ([#231](https://github.com/grafana/smtprelay/issues/231)) ([c85bf83](https://github.com/grafana/smtprelay/commit/c85bf83c673f06686275e53b6a8b7671d82ade23))
+* **actions:** bump aquasecurity/setup-trivy from 0.2.2 to 0.2.3 ([#233](https://github.com/grafana/smtprelay/issues/233)) ([ace295d](https://github.com/grafana/smtprelay/commit/ace295d6935575bcb9917dfe49e08ef76a752772))
+* **actions:** bump golangci/golangci-lint-action from 6 to 7 ([#229](https://github.com/grafana/smtprelay/issues/229)) ([6f8494b](https://github.com/grafana/smtprelay/commit/6f8494bb2046aac534b794981bb1b0e4261aa58b))
+* **actions:** Update Trivy to 0.58.1 ([#215](https://github.com/grafana/smtprelay/issues/215)) ([bca429f](https://github.com/grafana/smtprelay/commit/bca429fff1643c8d368ba597d8fe7959b51df32b))
+* **docker:** bump alpine from 3.20 to 3.21 ([#205](https://github.com/grafana/smtprelay/issues/205)) ([6280ea5](https://github.com/grafana/smtprelay/commit/6280ea5472b72ff4e13528ab4266bd2225079955))
+* **docker:** bump golang from 1.23-alpine to 1.24-alpine ([#220](https://github.com/grafana/smtprelay/issues/220)) ([f221f86](https://github.com/grafana/smtprelay/commit/f221f863ecb294c7e58c72506232892efa4eb0ce))
+* **go:** bump github.com/prometheus/client_golang from 1.20.5 to 1.21.1 ([#224](https://github.com/grafana/smtprelay/issues/224)) ([3823d7e](https://github.com/grafana/smtprelay/commit/3823d7ee840bc5a7a1a516d827ac0f9eddbee8fb))
+* **go:** bump github.com/prometheus/client_golang from 1.21.1 to 1.22.0 ([#234](https://github.com/grafana/smtprelay/issues/234)) ([790cd38](https://github.com/grafana/smtprelay/commit/790cd386cd168b7a64cc8ebb9819cf2c364d8e3f))
+* **go:** bump github.com/prometheus/common from 0.60.1 to 0.61.0 ([#204](https://github.com/grafana/smtprelay/issues/204)) ([319033f](https://github.com/grafana/smtprelay/commit/319033fb2b4bf263b94bdd8a8cf928da76ecbdcf))
+* **go:** bump github.com/prometheus/common from 0.61.0 to 0.62.0 ([#216](https://github.com/grafana/smtprelay/issues/216)) ([a1dbb12](https://github.com/grafana/smtprelay/commit/a1dbb128911b929b614892443871c29631becacc))
+* **go:** bump github.com/prometheus/common from 0.62.0 to 0.63.0 ([#228](https://github.com/grafana/smtprelay/issues/228)) ([6abbd44](https://github.com/grafana/smtprelay/commit/6abbd440a1fff1fb05335b99a31ac434f838b176))
+* **go:** bump github.com/stretchr/testify from 1.9.0 to 1.10.0 ([#201](https://github.com/grafana/smtprelay/issues/201)) ([0bc1c95](https://github.com/grafana/smtprelay/commit/0bc1c95638c01fd38b3dfb27a9462dfb2b845fec))
+* **go:** bump go.opentelemetry.io/contrib/samplers/jaegerremote ([#198](https://github.com/grafana/smtprelay/issues/198)) ([76ba49c](https://github.com/grafana/smtprelay/commit/76ba49cb794a7f9aedc2f2e5ad137aad82f9efc1))
+* **go:** bump go.opentelemetry.io/otel from 1.32.0 to 1.33.0 ([#208](https://github.com/grafana/smtprelay/issues/208)) ([8a500f9](https://github.com/grafana/smtprelay/commit/8a500f9b2ac51ea9bcee1d3615665872bb5c3552))
+* **go:** bump go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc ([#199](https://github.com/grafana/smtprelay/issues/199)) ([7778f42](https://github.com/grafana/smtprelay/commit/7778f4293a78a3a9b4147eda9c3b0e769acfa2dc))
+* **go:** bump go.opentelemetry.io/otel/sdk from 1.31.0 to 1.32.0 ([#197](https://github.com/grafana/smtprelay/issues/197)) ([ada354e](https://github.com/grafana/smtprelay/commit/ada354e1723ae05c5ad3b5b71ee7998b3c722a03))
+* **go:** bump golang.org/x/crypto from 0.28.0 to 0.29.0 ([#195](https://github.com/grafana/smtprelay/issues/195)) ([0c5d5f4](https://github.com/grafana/smtprelay/commit/0c5d5f43f8b0da2ad1106c0bd0e79bd897ee1638))
+* **go:** bump golang.org/x/crypto from 0.29.0 to 0.31.0 ([#206](https://github.com/grafana/smtprelay/issues/206)) ([3d5e3e6](https://github.com/grafana/smtprelay/commit/3d5e3e608f9807f1706327dd2ea5665b37a58cd5))
+* **go:** bump golang.org/x/crypto from 0.31.0 to 0.32.0 ([#212](https://github.com/grafana/smtprelay/issues/212)) ([826cde0](https://github.com/grafana/smtprelay/commit/826cde0dd96a7d4e2f4456b03308698114c87473))
+* **go:** bump golang.org/x/crypto from 0.32.0 to 0.35.0 ([#223](https://github.com/grafana/smtprelay/issues/223)) ([4deb0e5](https://github.com/grafana/smtprelay/commit/4deb0e5a6aaeffc33a990989b5096b9005b2d94b))
+* **go:** bump golang.org/x/crypto from 0.35.0 to 0.36.0 ([#226](https://github.com/grafana/smtprelay/issues/226)) ([45c2b73](https://github.com/grafana/smtprelay/commit/45c2b7330372f22a2c77ccd52db2c25375ec87f7))
+* **go:** bump golang.org/x/crypto from 0.36.0 to 0.37.0 ([#232](https://github.com/grafana/smtprelay/issues/232)) ([e62b9dd](https://github.com/grafana/smtprelay/commit/e62b9dd81e78f748def13fb027e08dbf86262c8f))
+* **go:** bump golang.org/x/net from 0.34.0 to 0.36.0 ([#227](https://github.com/grafana/smtprelay/issues/227)) ([d70679a](https://github.com/grafana/smtprelay/commit/d70679a5c0def71ecfe29f31430530f0319a7f77))
+* **go:** Bump golang.org/x/net from 0.36.0 to 0.38.0 ([#235](https://github.com/grafana/smtprelay/issues/235)) ([b3e4503](https://github.com/grafana/smtprelay/commit/b3e4503b00483ea4537356c025d8d836e87392c3))
+* **go:** bump the go-opentelemetry-io group with 3 updates ([#213](https://github.com/grafana/smtprelay/issues/213)) ([0a2dbbb](https://github.com/grafana/smtprelay/commit/0a2dbbb40cab3d7061907eead5eb0dc01266475a))
+* **go:** bump the go-opentelemetry-io group with 5 updates ([#217](https://github.com/grafana/smtprelay/issues/217)) ([1b4b5e4](https://github.com/grafana/smtprelay/commit/1b4b5e4da3ce987a9777fd7c4049aee4621bfa61))
+* **go:** bump the go-opentelemetry-io group with 5 updates ([#225](https://github.com/grafana/smtprelay/issues/225)) ([870e465](https://github.com/grafana/smtprelay/commit/870e465d44b8c37a96b76b6074f5f54ee5179131))
+
 ## [2.1.5](https://github.com/grafana/smtprelay/compare/v2.1.4...v2.1.5) (2024-10-28)
 
 
