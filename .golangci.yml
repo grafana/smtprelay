@@ -1,31 +1,30 @@
-linters-settings:
-  govet:
-    enable-all: true
-  dupl:
-    threshold: 100
-  goconst:
-    min-len: 3
-    min-occurrences: 6
-    ignore-tests: true
-  lll:
-    line-length: 140
-  nolintlint:
-    allow-unused: false # report any unused nolint directives
-    require-explanation: false # don't require an explanation for nolint directives
-    require-specific: false # don't require nolint directives to be specific about which linter is being skipped
-  gocognit:
-    min-complexity: 31
-  gomoddirectives:
-    replace-allow-list: []
-  depguard:
-    rules:
-      main:
-        deny:
-          - pkg: github.com/pkg/errors
-            desc: 'use `fmt.Errorf` instead, or the stdlib `errors` package'
+version: "2"
 
 linters:
-  disable-all: true
+  settings:
+    govet:
+      enable-all: true
+    dupl:
+      threshold: 100
+    goconst:
+      min-len: 3
+      min-occurrences: 6
+    lll:
+      line-length: 140
+    nolintlint:
+      allow-unused: false # report any unused nolint directives
+      require-explanation: false # don't require an explanation for nolint directives
+      require-specific: false # don't require nolint directives to be specific about which linter is being skipped
+    gocognit:
+      min-complexity: 31
+    depguard:
+      rules:
+        main:
+          deny:
+            - pkg: github.com/pkg/errors
+              desc: use `fmt.Errorf` instead, or the stdlib `errors` package
+
+  default: none
   enable:
     - asasalint
     - asciicheck
@@ -44,9 +43,7 @@ linters:
     - gocognit
     - goconst
     - gocritic
-    - gofmt
     - goheader
-    - goimports
     - gomoddirectives
     - gomodguard
     - goprintffuncname
@@ -68,16 +65,38 @@ linters:
     - revive
     - rowserrcheck
     - sqlclosecheck
-    - tenv
+    - staticcheck
     - testableexamples
     - thelper
     - tparallel
-    - typecheck
     - unconvert
     - unparam
     - unused
     - usestdlibvars
-    # these linters may need to be ignored because they can be slow
-    - gosimple
-    - staticcheck
-    - stylecheck
+
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - goconst
+        path: (.+)_test\.go
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
