@@ -512,9 +512,10 @@ func (session *session) handleXCLIENT(ctx context.Context, cmd command) {
 			newUsername = value
 			continue
 		case "PROTO":
-			if value == "SMTP" {
+			switch value {
+			case "SMTP":
 				newProto = SMTP
-			} else if value == "ESMTP" {
+			case "ESMTP":
 				newProto = ESMTP
 			}
 			continue

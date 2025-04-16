@@ -465,6 +465,7 @@ func getServerTLSConfig(certpath, keypath string) (*tls.Config, error) {
 		return nil, fmt.Errorf("cannot load X509 keypair: %w", err)
 	}
 
+	//nolint:gosec // 1.2 is default, and omitting MinVersion allows overriding with GODEBUG
 	return &tls.Config{
 		Certificates: []tls.Certificate{cert},
 	}, nil
