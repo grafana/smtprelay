@@ -6,9 +6,7 @@ on:
       - v[0-9]+.[0-9]+.[0-9]+
 
 permissions:
-  contents: write
-  pull-requests: write
-  id-token: write
+  contents: read
 
 jobs:
   push-docker:
@@ -19,6 +17,8 @@ jobs:
       image_version: ${{ steps.push.outputs.image_version }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
       - name: Log in to Docker Hub (on tags only)
         uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
         with:
@@ -31,6 +31,10 @@ jobs:
           echo "image_version=$(cat smtprelay.version)" >> "$GITHUB_OUTPUT"
   deploy-dev:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write
     environment:
       name: dev
     needs: push-docker
