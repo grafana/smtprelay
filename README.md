@@ -91,7 +91,7 @@ To test code or config, start smtprelay, and send test email using `swaks`.
 $ swaks --to=test@example.com --from=noreply@example.com --server=localhost:2525 --h-Subject="Hello from smtprelay" --body="This is test email from smtprelay"
 ```
 
-To test with trace propagation, start `smtprelay` using `air`, and use [otel-cli](https://github.com/equinix/otel-cli):
+To test with trace propagation, start `smtprelay` using `air`, and use [otel-cli](https://github.com/equinix-labs/otel-cli):
 
 ```console
 $ otel-cli exec -s swaks -n "send e-mail" -- sh -c 'swaks --to alice@example.com --from=bob@example.com --server localhost:2525 --h-Subject: "Hello from smtprelay" -h-Traceparent: "${TRACEPARENT}" --body "This is a test email from smtprelay"'
