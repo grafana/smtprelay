@@ -5,12 +5,12 @@ on:
     tags:
       - v[0-9]+.[0-9]+.[0-9]+
 
-permissions:
-  contents: read
-
 jobs:
   push-docker:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     env:
       DOCKER_BUILDKIT: 1
     outputs:
@@ -20,10 +20,8 @@ jobs:
         with:
           persist-credentials: false
       - name: Log in to Docker Hub (on tags only)
-        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+        uses: grafana/shared-workflows/actions/dockerhub-login@dockerhub-login-v1.0.1
+
       - name: Push images to Docker Hub (on tags only)
         id: push
         run: |
