@@ -17,6 +17,8 @@ import (
 )
 
 func Test_RecepientsCheck(t *testing.T) {
+	t.Parallel()
+
 	registry := prometheus.NewRegistry()
 	err := registerMetrics(registry)
 	require.NoError(t, err)
@@ -73,6 +75,8 @@ func Test_RecepientsCheck(t *testing.T) {
 	r := &relay{}
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			checker := r.recipientChecker(tt.allowed, tt.denied)
 
 			for _, e := range tt.emails {
@@ -86,6 +90,7 @@ func Test_RecepientsCheck(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest
 func TestAddLogHeaderFields(t *testing.T) {
 	out := &bytes.Buffer{}
 	logger := slog.New(slog.NewTextHandler(out, &slog.HandlerOptions{
@@ -165,6 +170,8 @@ This is a test message.
 }
 
 func TestAddrAllowedNoDomain(t *testing.T) {
+	t.Parallel()
+
 	allowedAddrs := []string{"joe@abc.com"}
 	if addrAllowed("bob.com", allowedAddrs) {
 		t.FailNow()
@@ -172,6 +179,8 @@ func TestAddrAllowedNoDomain(t *testing.T) {
 }
 
 func TestAddrAllowedSingle(t *testing.T) {
+	t.Parallel()
+
 	allowedAddrs := []string{"joe@abc.com"}
 
 	if !addrAllowed("joe@abc.com", allowedAddrs) {
@@ -183,6 +192,8 @@ func TestAddrAllowedSingle(t *testing.T) {
 }
 
 func TestAddrAllowedDifferentCase(t *testing.T) {
+	t.Parallel()
+
 	allowedAddrs := []string{"joe@abc.com"}
 	testAddrs := []string{
 		"joe@ABC.com",
@@ -198,6 +209,8 @@ func TestAddrAllowedDifferentCase(t *testing.T) {
 }
 
 func TestAddrAllowedLocal(t *testing.T) {
+	t.Parallel()
+
 	allowedAddrs := []string{"joe"}
 
 	if !addrAllowed("joe", allowedAddrs) {
@@ -209,6 +222,8 @@ func TestAddrAllowedLocal(t *testing.T) {
 }
 
 func TestAddrAllowedMulti(t *testing.T) {
+	t.Parallel()
+
 	allowedAddrs := []string{"joe@abc.com", "bob@def.com"}
 	if !addrAllowed("joe@abc.com", allowedAddrs) {
 		t.FailNow()
@@ -222,6 +237,8 @@ func TestAddrAllowedMulti(t *testing.T) {
 }
 
 func TestAddrAllowedSingleDomain(t *testing.T) {
+	t.Parallel()
+
 	allowedAddrs := []string{"@abc.com"}
 	if !addrAllowed("joe@abc.com", allowedAddrs) {
 		t.FailNow()
@@ -232,6 +249,8 @@ func TestAddrAllowedSingleDomain(t *testing.T) {
 }
 
 func TestAddrAllowedMixed(t *testing.T) {
+	t.Parallel()
+
 	allowedAddrs := []string{"app", "app@example.com", "@appsrv.example.com"}
 	if !addrAllowed("app", allowedAddrs) {
 		t.FailNow()

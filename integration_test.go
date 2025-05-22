@@ -124,6 +124,8 @@ func startRelay(ctx context.Context, t *testing.T, srvAddr string) string {
 }
 
 func TestSendMail(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 

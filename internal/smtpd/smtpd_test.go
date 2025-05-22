@@ -163,6 +163,8 @@ func runsslserver(t *testing.T, server *smtpd.Server) (addr string, closer func(
 }
 
 func TestSMTP(t *testing.T) {
+	t.Parallel()
+
 	addr, closer := runserver(t, &smtpd.Server{
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
@@ -215,6 +217,8 @@ func TestSMTP(t *testing.T) {
 }
 
 func TestListenAndServe(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
@@ -257,6 +261,8 @@ func TestListenAndServe(t *testing.T) {
 }
 
 func TestSTARTTLS(t *testing.T) {
+	t.Parallel()
+
 	addr, closer := runsslserver(t, &smtpd.Server{
 		Authenticator:  func(_ context.Context, _ smtpd.Peer, _, _ string) error { return nil },
 		ForceTLS:       true,
@@ -326,6 +332,8 @@ func TestSTARTTLS(t *testing.T) {
 }
 
 func TestAuthRejection(t *testing.T) {
+	t.Parallel()
+
 	addr, closer := runsslserver(t, &smtpd.Server{
 		Authenticator: func(_ context.Context, _ smtpd.Peer, _, _ string) error {
 			return smtpd.ErrAuthInvalid
@@ -346,6 +354,8 @@ func TestAuthRejection(t *testing.T) {
 }
 
 func TestAuthNotSupported(t *testing.T) {
+	t.Parallel()
+
 	addr, closer := runsslserver(t, &smtpd.Server{
 		ForceTLS:       true,
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
@@ -363,6 +373,8 @@ func TestAuthNotSupported(t *testing.T) {
 }
 
 func TestAuthBypass(t *testing.T) {
+	t.Parallel()
+
 	addr, closer := runsslserver(t, &smtpd.Server{
 		Authenticator: func(_ context.Context, _ smtpd.Peer, _, _ string) error {
 			return smtpd.ErrAuthInvalid
@@ -383,6 +395,8 @@ func TestAuthBypass(t *testing.T) {
 }
 
 func TestConnectionCheck(t *testing.T) {
+	t.Parallel()
+
 	addr, closer := runserver(t, &smtpd.Server{
 		ConnectionChecker: func(_ context.Context, _ smtpd.Peer) error {
 			return smtpd.ErrIPDenied
@@ -396,6 +410,8 @@ func TestConnectionCheck(t *testing.T) {
 }
 
 func TestConnectionCheckSimpleError(t *testing.T) {
+	t.Parallel()
+
 	addr, closer := runserver(t, &smtpd.Server{
 		ConnectionChecker: func(_ context.Context, _ smtpd.Peer) error {
 			return errors.New("Denied")
@@ -409,6 +425,8 @@ func TestConnectionCheckSimpleError(t *testing.T) {
 }
 
 func TestHELOCheck(t *testing.T) {
+	t.Parallel()
+
 	addr, closer := runserver(t, &smtpd.Server{
 		HeloChecker: func(_ context.Context, _ smtpd.Peer, name string) error {
 			require.Equal(t, "foobar.local", name)
@@ -427,6 +445,8 @@ func TestHELOCheck(t *testing.T) {
 }
 
 func TestSenderCheck(t *testing.T) {
+	t.Parallel()
+
 	addr, closer := runserver(t, &smtpd.Server{
 		SenderChecker: func(_ context.Context, _ smtpd.Peer, _ string) error {
 			return smtpd.ErrSenderDenied
@@ -443,6 +463,8 @@ func TestSenderCheck(t *testing.T) {
 }
 
 func TestRecipientCheck(t *testing.T) {
+	t.Parallel()
+
 	addr, closer := runserver(t, &smtpd.Server{
 		RecipientChecker: func(_ context.Context, _ smtpd.Peer, _ string) error {
 			return smtpd.ErrRecipientDenied
@@ -462,6 +484,8 @@ func TestRecipientCheck(t *testing.T) {
 }
 
 func TestMaxMessageSize(t *testing.T) {
+	t.Parallel()
+
 	addr, closer := runserver(t, &smtpd.Server{
 		MaxMessageSize: 5,
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
@@ -491,6 +515,8 @@ func TestMaxMessageSize(t *testing.T) {
 }
 
 func TestHandler(t *testing.T) {
+	t.Parallel()
+
 	expectedHeader := textproto.MIMEHeader{}
 	body := "This is the email body"
 
@@ -528,6 +554,8 @@ func TestHandler(t *testing.T) {
 }
 
 func TestRejectHandler(t *testing.T) {
+	t.Parallel()
+
 	addr, closer := runserver(t, &smtpd.Server{
 		Handler: func(_ context.Context, _ smtpd.Peer, _ smtpd.Envelope) error {
 			return smtpd.ErrTooBig
@@ -560,6 +588,8 @@ func TestRejectHandler(t *testing.T) {
 }
 
 func TestMaxConnections(t *testing.T) {
+	t.Parallel()
+
 	addr, closer := runserver(t, &smtpd.Server{
 		MaxConnections: 1,
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
@@ -576,6 +606,8 @@ func TestMaxConnections(t *testing.T) {
 }
 
 func TestNoMaxConnections(t *testing.T) {
+	t.Parallel()
+
 	addr, closer := runserver(t, &smtpd.Server{
 		MaxConnections: -1,
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
@@ -589,6 +621,8 @@ func TestNoMaxConnections(t *testing.T) {
 }
 
 func TestMaxRecipients(t *testing.T) {
+	t.Parallel()
+
 	addr, closer := runserver(t, &smtpd.Server{
 		MaxRecipients:  1,
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
@@ -612,6 +646,8 @@ func TestMaxRecipients(t *testing.T) {
 }
 
 func TestInvalidHelo(t *testing.T) {
+	t.Parallel()
+
 	addr, closer := runserver(t, &smtpd.Server{
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
@@ -625,6 +661,8 @@ func TestInvalidHelo(t *testing.T) {
 }
 
 func TestInvalidSender(t *testing.T) {
+	t.Parallel()
+
 	addr, closer := runserver(t, &smtpd.Server{
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
@@ -638,6 +676,8 @@ func TestInvalidSender(t *testing.T) {
 }
 
 func TestInvalidRecipient(t *testing.T) {
+	t.Parallel()
+
 	addr, closer := runserver(t, &smtpd.Server{
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
@@ -654,6 +694,8 @@ func TestInvalidRecipient(t *testing.T) {
 }
 
 func TestRCPTbeforeMAIL(t *testing.T) {
+	t.Parallel()
+
 	addr, closer := runserver(t, &smtpd.Server{
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
@@ -667,6 +709,8 @@ func TestRCPTbeforeMAIL(t *testing.T) {
 }
 
 func TestDATAbeforeRCPT(t *testing.T) {
+	t.Parallel()
+
 	addr, closer := runserver(t, &smtpd.Server{
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
@@ -687,6 +731,8 @@ func TestDATAbeforeRCPT(t *testing.T) {
 }
 
 func TestInterruptedDATA(t *testing.T) {
+	t.Parallel()
+
 	addr, closer := runserver(t, &smtpd.Server{
 		Handler: func(_ context.Context, _ smtpd.Peer, _ smtpd.Envelope) error {
 			t.Fatal("Accepted DATA despite disconnection")
@@ -716,6 +762,8 @@ func TestInterruptedDATA(t *testing.T) {
 }
 
 func TestTimeoutClose(t *testing.T) {
+	t.Parallel()
+
 	addr, closer := runserver(t, &smtpd.Server{
 		MaxConnections: 1,
 		ReadTimeout:    1000 * time.Millisecond,
@@ -748,6 +796,8 @@ func TestTimeoutClose(t *testing.T) {
 }
 
 func TestTLSTimeout(t *testing.T) {
+	t.Parallel()
+
 	addr, closer := runsslserver(t, &smtpd.Server{
 		ReadTimeout:    200 * time.Millisecond,
 		WriteTimeout:   200 * time.Millisecond,
@@ -784,6 +834,8 @@ func TestTLSTimeout(t *testing.T) {
 }
 
 func TestLongLine(t *testing.T) {
+	t.Parallel()
+
 	addr, closer := runserver(t, &smtpd.Server{
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
@@ -800,6 +852,8 @@ func TestLongLine(t *testing.T) {
 }
 
 func TestXCLIENT(t *testing.T) {
+	t.Parallel()
+
 	addr, closer := runserver(t, &smtpd.Server{
 		EnableXCLIENT: true,
 		SenderChecker: func(_ context.Context, peer smtpd.Peer, addr string) error {
@@ -847,6 +901,8 @@ func TestXCLIENT(t *testing.T) {
 }
 
 func TestEnvelopeReceived(t *testing.T) {
+	t.Parallel()
+
 	addr, closer := runsslserver(t, &smtpd.Server{
 		Hostname: "foobar.example.net",
 		Handler: func(_ context.Context, peer smtpd.Peer, env smtpd.Envelope) error {
@@ -887,6 +943,8 @@ func TestEnvelopeReceived(t *testing.T) {
 }
 
 func TestHELO(t *testing.T) {
+	t.Parallel()
+
 	addr, closer := runserver(t, &smtpd.Server{
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
@@ -913,6 +971,8 @@ func TestHELO(t *testing.T) {
 }
 
 func TestLOGINAuth(t *testing.T) {
+	t.Parallel()
+
 	addr, closer := runsslserver(t, &smtpd.Server{
 		Authenticator:  func(_ context.Context, _ smtpd.Peer, _, _ string) error { return nil },
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
@@ -955,36 +1015,45 @@ func TestLOGINAuth(t *testing.T) {
 }
 
 func TestMailFrom(t *testing.T) {
+	t.Parallel()
+
 	addr, closer := runserver(t, &smtpd.Server{
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	})
 	defer closer()
 
-	testdata := []struct {
-		name, from string
-	}{
-		{"null", "<>"},
-		{"no brackets", "test@example.org"},
-	}
+	// null address
+	from := "<>"
+	c, err := smtp.Dial(addr)
+	require.NoError(t, err)
 
-	for _, d := range testdata {
-		t.Run(d.name, func(t *testing.T) {
-			c, err := smtp.Dial(addr)
-			require.NoError(t, err)
+	err = cmd(c.Text, 250, "HELO localhost")
+	require.NoError(t, err)
 
-			err = cmd(c.Text, 250, "HELO localhost")
-			require.NoError(t, err)
+	err = cmd(c.Text, 250, "MAIL FROM:%s", from)
+	require.NoError(t, err)
 
-			err = cmd(c.Text, 250, "MAIL FROM:%s", d.from)
-			require.NoError(t, err)
+	err = c.Quit()
+	require.NoError(t, err)
 
-			err = c.Quit()
-			require.NoError(t, err)
-		})
-	}
+	// no brackets
+	from = "test@example.org"
+	c, err = smtp.Dial(addr)
+	require.NoError(t, err)
+
+	err = cmd(c.Text, 250, "HELO localhost")
+	require.NoError(t, err)
+
+	err = cmd(c.Text, 250, "MAIL FROM:%s", from)
+	require.NoError(t, err)
+
+	err = c.Quit()
+	require.NoError(t, err)
 }
 
 func TestErrors(t *testing.T) {
+	t.Parallel()
+
 	cert, err := tls.X509KeyPair(localhostCert, localhostKey)
 	require.NoError(t, err)
 
@@ -1048,6 +1117,8 @@ func TestErrors(t *testing.T) {
 }
 
 func TestMalformedMAILFROM(t *testing.T) {
+	t.Parallel()
+
 	addr, closer := runserver(t, &smtpd.Server{
 		SenderChecker: func(_ context.Context, _ smtpd.Peer, addr string) error {
 			if addr != "test@example.org" {
@@ -1073,6 +1144,8 @@ func TestMalformedMAILFROM(t *testing.T) {
 }
 
 func TestTLSListener(t *testing.T) {
+	t.Parallel()
+
 	cert, err := tls.X509KeyPair(localhostCert, localhostKey)
 	require.NoError(t, err)
 
@@ -1123,6 +1196,8 @@ func TestTLSListener(t *testing.T) {
 }
 
 func TestShutdown(t *testing.T) {
+	t.Parallel()
+
 	server := &smtpd.Server{
 		ProtocolLogger: log.New(os.Stdout, "log: ", log.Lshortfile),
 	}
@@ -1202,6 +1277,8 @@ func TestShutdown(t *testing.T) {
 }
 
 func TestServeFailsIfShutdown(t *testing.T) {
+	t.Parallel()
+
 	server := &smtpd.Server{}
 	err := server.Shutdown(true)
 	require.NoError(t, err)
@@ -1211,15 +1288,21 @@ func TestServeFailsIfShutdown(t *testing.T) {
 }
 
 func TestWaitFailsIfNotShutdown(t *testing.T) {
+	t.Parallel()
+
 	server := &smtpd.Server{}
 	err := server.Wait()
 	require.Error(t, err)
 }
 
 func TestServe_Context(t *testing.T) {
+	t.Parallel()
+
 	lc := net.ListenConfig{}
 
 	t.Run("cancelled context", func(t *testing.T) {
+		t.Parallel()
+
 		server := &smtpd.Server{}
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
@@ -1245,6 +1328,8 @@ func TestServe_Context(t *testing.T) {
 	})
 
 	t.Run("cancelled context after serve", func(t *testing.T) {
+		t.Parallel()
+
 		server := &smtpd.Server{}
 		t.Cleanup(func() {
 			_ = server.Shutdown(false)
@@ -1276,6 +1361,8 @@ func TestServe_Context(t *testing.T) {
 	})
 
 	t.Run("cancelled context after serve and accept", func(t *testing.T) {
+		t.Parallel()
+
 		server := &smtpd.Server{}
 		t.Cleanup(func() {
 			_ = server.Shutdown(false)
@@ -1316,6 +1403,8 @@ func TestServe_Context(t *testing.T) {
 	})
 
 	t.Run("connection context cancelled doesn't close server", func(t *testing.T) {
+		t.Parallel()
+
 		server := &smtpd.Server{
 			ConnContext: func(ctx context.Context, _ net.Conn) context.Context {
 				ctx, cancel := context.WithCancel(ctx)

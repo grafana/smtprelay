@@ -10,6 +10,8 @@ import (
 )
 
 func TestMIMEHeaderCarrier(t *testing.T) {
+	t.Parallel()
+
 	hc := MIMEHeaderCarrier{}
 	hc.Set("Foo", "bar")
 	hc.Set("Traceparent", "00-e775b110dfe5dd5e0f385d5afe2df71e-8cd5b7ec6ac3bcab-01")

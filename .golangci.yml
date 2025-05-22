@@ -37,7 +37,6 @@ linters:
     - dupl
     - dupword
     - durationcheck
-    # - err113
     - errcheck
     - errname
     - errorlint
@@ -45,7 +44,6 @@ linters:
     - goconst
     - gocritic
     - goheader
-    # - gochecknoglobals
     - gomoddirectives
     - gomodguard
     - goprintffuncname
@@ -61,7 +59,7 @@ linters:
     - noctx
     - nolintlint
     - nosprintfhostport
-    # - paralleltest
+    - paralleltest
     - perfsprint
     - prealloc
     - predeclared
@@ -79,7 +77,6 @@ linters:
     - unparam
     - unused
     - usestdlibvars
-    # - wrapcheck
     - wastedassign
 
   exclusions:

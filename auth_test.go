@@ -17,6 +17,8 @@ func stringsEqual(a, b []string) bool {
 }
 
 func TestParseLine(t *testing.T) {
+	t.Parallel()
+
 	var tests = []struct {
 		name       string
 		line       string
@@ -67,6 +69,8 @@ func TestParseLine(t *testing.T) {
 
 	for i, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
 			user := parseLine(test.line)
 			if user == nil {
 				if !test.expectFail {
