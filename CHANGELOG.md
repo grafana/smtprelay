@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.2.2](https://github.com/grafana/smtprelay/compare/v2.2.1...v2.2.2) (2025-05-22)
+
+
+### Dependencies
+
+* **actions:** Bump actions/setup-go from 5.4.0 to 5.5.0 ([#252](https://github.com/grafana/smtprelay/issues/252)) ([cd1f9d2](https://github.com/grafana/smtprelay/commit/cd1f9d2f5cfa02390eb83ad6c1ce4dd05c9a5b95))
+* **actions:** bump github/codeql-action from 3.28.17 to 3.28.18 ([#256](https://github.com/grafana/smtprelay/issues/256)) ([b357472](https://github.com/grafana/smtprelay/commit/b3574724fc99a2655ff9e2ad1834dd18dcf2f158))
+* **go:** bump github.com/prometheus/common from 0.63.0 to 0.64.0 ([#255](https://github.com/grafana/smtprelay/issues/255)) ([9fcab7c](https://github.com/grafana/smtprelay/commit/9fcab7c6178632a714317b0766406fb97db8d5bf))
+* **go:** bump the go-opentelemetry-io group with 4 updates ([#258](https://github.com/grafana/smtprelay/issues/258)) ([e905c7d](https://github.com/grafana/smtprelay/commit/e905c7d47410750019a5a144bd48739d47a69d1a))
+
 ## [2.2.1](https://github.com/grafana/smtprelay/compare/v2.2.0...v2.2.1) (2025-05-22)
 
 
