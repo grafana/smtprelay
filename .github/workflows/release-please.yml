@@ -19,8 +19,8 @@ jobs:
         id: get-secrets
         with:
           repo_secrets: |
-            GITHUB_APP_ID=release-app:client-id
-            GITHUB_APP_PRIVATE_KEY=release-app:private-key
+            GITHUB_APP_ID=release-trigger:client-id
+            GITHUB_APP_PRIVATE_KEY=release-trigger:private-key
           export_env: false
       - uses: actions/create-github-app-token@df432ceedc7162793a195dd1713ff69aefc7379e # v2.0.6
         id: app-token
