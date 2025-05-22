@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.2.1](https://github.com/grafana/smtprelay/compare/v2.2.0...v2.2.1) (2025-05-22)
+
+
+### Documentation
+
+* **readme:** fix wrong link ([#239](https://github.com/grafana/smtprelay/issues/239)) ([73ce2bd](https://github.com/grafana/smtprelay/commit/73ce2bdc0064128f42d223e0052d60502b74e2db))
+
+
+### Dependencies
+
+* **actions:** Bump actions/create-github-app-token from 2.0.2 to 2.0.6 ([#246](https://github.com/grafana/smtprelay/issues/246)) ([bf7b0dc](https://github.com/grafana/smtprelay/commit/bf7b0dc2d24ba3d21269af96a3ff572df3a11c69))
+* **actions:** Bump github/codeql-action from 3.28.16 to 3.28.17 ([#244](https://github.com/grafana/smtprelay/issues/244)) ([e5126f7](https://github.com/grafana/smtprelay/commit/e5126f7240c4e189ca6e91e167223cb9fe405c1b))
+* **actions:** Bump golangci/golangci-lint-action from 7.0.0 to 8.0.0 ([#247](https://github.com/grafana/smtprelay/issues/247)) ([e4dfb2f](https://github.com/grafana/smtprelay/commit/e4dfb2f730f1be4d1dcf3ed4e8bb0aab9b3d31f5))
+* **actions:** Update grafana/shared-workflows requirement to 49eed0955ec059569c3eca1b4221fe7741c2b260 ([#254](https://github.com/grafana/smtprelay/issues/254)) ([e85a831](https://github.com/grafana/smtprelay/commit/e85a831347815af0721ac520e72e203d0d9a5a9c))
+* **docker:** Bump golang from `7772cb5` to `ef18ee7` ([#250](https://github.com/grafana/smtprelay/issues/250)) ([132f2ea](https://github.com/grafana/smtprelay/commit/132f2ea847a4bad7cec6325db9a8489ed0396cf2))
+* **go:** Bump golang.org/x/crypto from 0.37.0 to 0.38.0 ([#249](https://github.com/grafana/smtprelay/issues/249)) ([9bfcccd](https://github.com/grafana/smtprelay/commit/9bfcccdb0021845dd98eab93aed21fb3176b0add))
+
 ## [2.2.0](https://github.com/grafana/smtprelay/compare/v2.1.5...v2.2.0) (2025-04-16)
 
 
