@@ -9,6 +9,8 @@ import (
 )
 
 func TestSetupAllowedNetworks(t *testing.T) {
+	t.Parallel()
+
 	// obvious non-CIDR
 	_, err := setupAllowedNetworks("bogus")
 	require.Error(t, err)

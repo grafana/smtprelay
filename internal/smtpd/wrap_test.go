@@ -5,6 +5,7 @@ import (
 )
 
 func TestWrap(t *testing.T) {
+	t.Parallel()
 
 	cases := map[string]string{
 		"foobar":         "foobar",

@@ -10,6 +10,7 @@ import (
 	"net/smtp"
 	"net/textproto"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -368,7 +369,7 @@ func (r *relay) mailHandler(cfg *config) func(ctx context.Context, peer smtpd.Pe
 }
 
 func observeErr(ctx context.Context, err *textproto.Error) error {
-	errorsCounter.WithLabelValues(fmt.Sprintf("%v", err.Code)).Inc()
+	errorsCounter.WithLabelValues(strconv.Itoa(err.Code)).Inc()
 
 	span := trace.SpanFromContext(ctx)
 	span.RecordError(err)
@@ -453,11 +454,11 @@ func generateUUID() string {
 
 func getServerTLSConfig(certpath, keypath string) (*tls.Config, error) {
 	if certpath == "" {
-		return nil, fmt.Errorf("empty local_cert")
+		return nil, errors.New("empty local_cert")
 	}
 
 	if keypath == "" {
-		return nil, fmt.Errorf("empty local_key")
+		return nil, errors.New("empty local_key")
 	}
 
 	cert, err := tls.LoadX509KeyPair(certpath, keypath)

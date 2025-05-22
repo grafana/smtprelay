@@ -110,7 +110,7 @@ func startRelay(ctx context.Context, t *testing.T, srvAddr string) string {
 	}()
 
 	// wait for the server to start
-	for n := 0; n < 10; n++ {
+	for range 10 {
 		conn, err := net.Dial("tcp", addr)
 		if err == nil {
 			_ = conn.Close()
@@ -124,6 +124,8 @@ func startRelay(ctx context.Context, t *testing.T, srvAddr string) string {
 }
 
 func TestSendMail(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 

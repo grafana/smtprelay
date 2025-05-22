@@ -372,12 +372,12 @@ func (session *session) handleAUTH(ctx context.Context, cmd command) {
 
 	mechanism := strings.ToUpper(cmd.fields[1])
 
-	username := ""
-	password := ""
+	var username string
+	var password string
 
 	switch mechanism {
 	case "PLAIN":
-		auth := ""
+		var auth string
 
 		if len(cmd.fields) < 3 {
 			session.reply(334, "Give me your credentials")
@@ -406,7 +406,7 @@ func (session *session) handleAUTH(ctx context.Context, cmd command) {
 		username = string(parts[1])
 		password = string(parts[2])
 	case "LOGIN":
-		encodedUsername := ""
+		var encodedUsername string
 
 		if len(cmd.fields) < 3 {
 			session.reply(334, "VXNlcm5hbWU6")

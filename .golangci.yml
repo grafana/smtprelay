@@ -50,6 +50,7 @@ linters:
     - gosec
     - govet
     - ineffassign
+    - intrange
     - loggercheck
     - makezero
     - misspell
@@ -58,6 +59,8 @@ linters:
     - noctx
     - nolintlint
     - nosprintfhostport
+    - paralleltest
+    - perfsprint
     - prealloc
     - predeclared
     - promlinter
@@ -67,12 +70,14 @@ linters:
     - sqlclosecheck
     - staticcheck
     - testableexamples
+    - testifylint
     - thelper
     - tparallel
     - unconvert
     - unparam
     - unused
     - usestdlibvars
+    - wastedassign
 
   exclusions:
     generated: lax
