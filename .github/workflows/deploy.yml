@@ -6,27 +6,58 @@ on:
       - v[0-9]+.[0-9]+.[0-9]+
 
 jobs:
+  version:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      short-sha: ${{ steps.version.outputs.short-sha }}
+      go-ldflags: ${{ steps.version.outputs.go-ldflags }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: ./go.mod
+          cache: false
+      - name: get version numbers
+        id: version
+        run: |
+          echo "short-sha=$(echo ${{ github.sha }} | cut -c 1-7)" >> $GITHUB_OUTPUT
+          echo "version=$(go run ./scripts/version.go)" >> $GITHUB_OUTPUT
+          echo "go-ldflags=$(go run ./scripts/version.go -g)" >> $GITHUB_OUTPUT
+      - name: print version outputs
+        run: |
+          echo "version: ${{ steps.version.outputs.version }}"
+          echo "short-sha: ${{ steps.version.outputs.short-sha }}"
+          echo "go-ldflags: ${{ steps.version.outputs.go-ldflags }}"
   push-docker:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
-    env:
-      DOCKER_BUILDKIT: 1
-    outputs:
-      image_version: ${{ steps.push.outputs.image_version }}
+    needs: version
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
+          fetch-depth: 1
           persist-credentials: false
-      - name: Log in to Docker Hub (on tags only)
-        uses: grafana/shared-workflows/actions/dockerhub-login@dockerhub-login-v1.0.1
-
-      - name: Push images to Docker Hub (on tags only)
+      - uses: grafana/shared-workflows/actions/build-push-to-dockerhub@5e3deaf6734ec48f298adadad5fb2d12a2139907 # main
         id: push
-        run: |
-          make docker-push
-          echo "image_version=$(cat smtprelay.version)" >> "$GITHUB_OUTPUT"
+        with:
+          repository: grafana/smtprelay
+          platforms: linux/amd64
+          push: "true"
+          build-args: |-
+            GIT_REVISION=${{ needs.version.outputs.short-sha }}
+            VERSION=${{ needs.version.outputs.version }}
+            "GO_LDFLAGS=${{ needs.version.outputs.go-ldflags }}"
+          tags: |-
+            ${{ needs.version.outputs.version }}
   deploy-dev:
     runs-on: ubuntu-latest
     permissions:
@@ -35,13 +66,13 @@ jobs:
       id-token: write
     environment:
       name: dev
-    needs: push-docker
+    needs: [version, push-docker]
     steps:
       - name: Trigger CD workflow
-        uses: grafana/shared-workflows/actions/trigger-argo-workflow@49eed0955ec059569c3eca1b4221fe7741c2b260 # main
+        uses: grafana/shared-workflows/actions/trigger-argo-workflow@5e3deaf6734ec48f298adadad5fb2d12a2139907 # main
         with:
           instance: ops
           namespace: hosted-grafana-cd
           workflow_template: smtprelay
           parameters: |
-            dockertag=${{ needs.push-docker.outputs.image_version }}
+            dockertag=${{ needs.version.outputs.version }}
