@@ -37,6 +37,7 @@ linters:
     - dupl
     - dupword
     - durationcheck
+    # - err113
     - errcheck
     - errname
     - errorlint
@@ -44,12 +45,14 @@ linters:
     - goconst
     - gocritic
     - goheader
+    # - gochecknoglobals
     - gomoddirectives
     - gomodguard
     - goprintffuncname
     - gosec
     - govet
     - ineffassign
+    - intrange
     - loggercheck
     - makezero
     - misspell
@@ -58,6 +61,8 @@ linters:
     - noctx
     - nolintlint
     - nosprintfhostport
+    # - paralleltest
+    - perfsprint
     - prealloc
     - predeclared
     - promlinter
@@ -67,12 +72,15 @@ linters:
     - sqlclosecheck
     - staticcheck
     - testableexamples
+    # - testifylint
     - thelper
     - tparallel
     - unconvert
     - unparam
     - unused
     - usestdlibvars
+    # - wrapcheck
+    # - wastedassign
 
   exclusions:
     generated: lax

@@ -335,7 +335,7 @@ func (srv *Server) configureDefaults() {
 	}
 
 	if srv.WelcomeMessage == "" {
-		srv.WelcomeMessage = fmt.Sprintf("%s ESMTP ready.", srv.Hostname)
+		srv.WelcomeMessage = srv.Hostname + " ESMTP ready."
 	}
 }
 

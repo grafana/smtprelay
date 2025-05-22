@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/pprof"
+	"strconv"
 	"time"
 
 	deltapprof "github.com/grafana/pyroscope-go/godeltaprof/http/pprof"
@@ -166,9 +167,9 @@ func observeDuration(ctx context.Context, statusCode int, duration time.Duration
 		exemplarLabels["traceID"] = traceID.String()
 	}
 
-	durHist := durationNative.WithLabelValues(fmt.Sprintf("%d", statusCode)).(prometheus.ExemplarObserver)
+	durHist := durationNative.WithLabelValues(strconv.Itoa(statusCode)).(prometheus.ExemplarObserver)
 	durHist.ObserveWithExemplar(duration.Seconds(), exemplarLabels)
 
 	// legacy metric doesn't get exemplar - it's going away
-	durationHistogram.WithLabelValues(fmt.Sprintf("%d", statusCode)).Observe(duration.Seconds())
+	durationHistogram.WithLabelValues(strconv.Itoa(statusCode)).Observe(duration.Seconds())
 }

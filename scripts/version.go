@@ -4,6 +4,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -145,7 +146,7 @@ func release(ver *semver.Version, nosign bool) error {
 	}
 
 	if strings.TrimSpace(out) != "## main...origin/main" {
-		return fmt.Errorf("must release from the main branch - check it out and pull first")
+		return errors.New("must release from the main branch - check it out and pull first")
 	}
 
 	// make sure we're up to date
@@ -188,7 +189,7 @@ func release(ver *semver.Version, nosign bool) error {
 	fmt.Println(out)
 	if err != nil {
 		if strings.Contains(err.Error(), `"gh": executable file not found in $PATH`) {
-			return fmt.Errorf("gh is not installed, please install via https://cli.github.com/")
+			return errors.New("gh is not installed, please install via https://cli.github.com/")
 		}
 		return fmt.Errorf("failed to run cmd %s: %w", ghReleaseCmd, err)
 	}

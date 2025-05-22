@@ -792,7 +792,7 @@ func TestLongLine(t *testing.T) {
 	c, err := smtp.Dial(addr)
 	require.NoError(t, err)
 
-	err = c.Mail(fmt.Sprintf("%s@example.org", strings.Repeat("x", 65*1024)))
+	err = c.Mail(strings.Repeat("x", 65*1024) + "@example.org")
 	require.Error(t, err)
 
 	err = c.Quit()
