@@ -80,7 +80,7 @@ linters:
     - unused
     - usestdlibvars
     # - wrapcheck
-    # - wastedassign
+    - wastedassign
 
   exclusions:
     generated: lax
