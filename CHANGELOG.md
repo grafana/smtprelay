@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.3](https://github.com/grafana/smtprelay/compare/v2.2.2...v2.2.3) (2025-05-22)
+
+
+### Bug Fixes
+
+* **lint:** Enable more linters ([#263](https://github.com/grafana/smtprelay/issues/263)) ([e9fced5](https://github.com/grafana/smtprelay/commit/e9fced52a91011f7640c094079e5bd73db7c6ba1))
+
 ## [2.2.2](https://github.com/grafana/smtprelay/compare/v2.2.1...v2.2.2) (2025-05-22)
 
 
