@@ -158,7 +158,7 @@ This is a test message.
 			strings.TrimSpace(out.String()),
 			" ",
 		)
-		assert.Equal(t, 2, len(pairs))
+		assert.Len(t, pairs, 2)
 		assert.Contains(t, pairs, "subject=test")
 		assert.Contains(t, pairs, "msgid=9a7f8b9c-6d1d-4b9a-8c0a-9e4b9c6d1d4b")
 	})

@@ -500,7 +500,7 @@ func TestHandler(t *testing.T) {
 			assert.Len(t, env.Recipients, 1)
 			assert.Equal(t, "recipient@example.net", env.Recipients[0])
 			assert.Equal(t, body+"\n", string(env.Data))
-			assert.Equal(t, env.Header, expectedHeader)
+			assert.Equal(t, expectedHeader, env.Header)
 
 			return nil
 		},

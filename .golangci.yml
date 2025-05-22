@@ -72,7 +72,7 @@ linters:
     - sqlclosecheck
     - staticcheck
     - testableexamples
-    # - testifylint
+    - testifylint
     - thelper
     - tparallel
     - unconvert
