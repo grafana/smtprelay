@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.4](https://github.com/grafana/smtprelay/compare/v2.2.3...v2.2.4) (2025-05-23)
+
+
+### Dependencies
+
+* **actions:** update grafana/shared-workflows requirement to 5e3deaf6734ec48f298adadad5fb2d12a2139907 ([#266](https://github.com/grafana/smtprelay/issues/266)) ([90f6e57](https://github.com/grafana/smtprelay/commit/90f6e57cb93a090d0bd5f37c756ab9036fa9a277))
+* **go:** bump go.opentelemetry.io/contrib/samplers/jaegerremote ([#265](https://github.com/grafana/smtprelay/issues/265)) ([265210c](https://github.com/grafana/smtprelay/commit/265210c748b20ae78fc929d12026b5607a442f0a))
+
 ## [2.2.3](https://github.com/grafana/smtprelay/compare/v2.2.2...v2.2.3) (2025-05-22)
 
 
