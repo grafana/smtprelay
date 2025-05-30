@@ -46,7 +46,7 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
-      - uses: grafana/shared-workflows/actions/build-push-to-dockerhub@5e3deaf6734ec48f298adadad5fb2d12a2139907 # main
+      - uses: grafana/shared-workflows/actions/build-push-to-dockerhub@e5377f9c2aee143ccf63001896fa59eef7bea1d5 # main
         id: push
         with:
           repository: grafana/smtprelay
@@ -69,7 +69,7 @@ jobs:
     needs: [version, push-docker]
     steps:
       - name: Trigger CD workflow
-        uses: grafana/shared-workflows/actions/trigger-argo-workflow@5e3deaf6734ec48f298adadad5fb2d12a2139907 # main
+        uses: grafana/shared-workflows/actions/trigger-argo-workflow@e5377f9c2aee143ccf63001896fa59eef7bea1d5 # main
         with:
           instance: ops
           namespace: hosted-grafana-cd
