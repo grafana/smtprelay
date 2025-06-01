@@ -291,78 +291,108 @@ func (r *relay) mailHandler(cfg *config) func(ctx context.Context, peer smtpd.Pe
 
 		logger := slog.With(slog.String("component", "mail_handler"), slog.String("uuid", uniqueID))
 
-		// parse headers from data if we need to log any of them
-		var err error
-		deliveryLog := logger.With(
-			slog.String("from", env.Sender),
-			slog.Any("to", env.Recipients),
-			slog.String("host", cfg.remoteHost),
-		)
-		deliveryLog = addLogHeaderFields(cfg.logHeaders, deliveryLog, env.Header)
+		listOfRemoteHosts := strings.Split(cfg.remoteHost, " ")
+		listOfRemoteAuth := strings.Split(cfg.remoteAuth, " ")
+		listOfRemoteSenders := strings.Split(cfg.remoteSender, " ")
+		listOfRemoteUsers := strings.Split(cfg.remoteUser, " ")
+		listOfRemotePass := strings.Split(cfg.remotePass, " ")
 
-		deliveryLog.InfoContext(ctx, "delivering mail from peer using smarthost")
+		for i := range listOfRemoteHosts {
+			currRemoteHost := listOfRemoteHosts[i]
+			currRemoteAuth := ""
+			currRemoteSender := ""
+			currRemoteUser := ""
+			currRemotePass := ""
 
-		var auth smtp.Auth
-		host, _, _ := net.SplitHostPort(cfg.remoteHost)
-
-		if cfg.remoteUser != "" && cfg.remotePass != "" {
-			switch cfg.remoteAuth {
-			case "plain":
-				auth = smtp.PlainAuth("", cfg.remoteUser, cfg.remotePass, host)
-			default:
-				return observeErr(ctx, smtpd.ErrUnsupportedAuthMethod)
+			if len(listOfRemoteAuth) > i {
+				currRemoteAuth = listOfRemoteAuth[i]
 			}
-		}
 
-		env.AddReceivedLine(peer)
+			if len(listOfRemoteSenders) > i {
+				currRemoteSender = listOfRemoteSenders[i]
+			}
 
-		var sender string
+			if len(listOfRemoteUsers) > i {
+				currRemoteUser = listOfRemoteUsers[i]
+			}
 
-		if cfg.remoteSender == "" {
-			sender = env.Sender
-		} else {
-			sender = cfg.remoteSender
-		}
+			if len(listOfRemotePass) > i {
+				currRemotePass = listOfRemotePass[i]
+			}
 
-		msgSizeHistogram.Observe(float64(len(env.Data)))
+			// parse headers from data if we need to log any of them
+			var err error
+			deliveryLog := logger.With(
+				slog.String("from", env.Sender),
+				slog.Any("to", env.Recipients),
+				slog.String("host", currRemoteHost),
+			)
+			deliveryLog = addLogHeaderFields(cfg.logHeaders, deliveryLog, env.Header)
 
-		// successful status is always 250
-		statusCode := 250
-		start := time.Now()
+			deliveryLog.InfoContext(ctx, "delivering mail from peer using smarthost")
 
-		defer func() {
-			span.SetAttributes(traceutil.StatusCode(statusCode))
+			var auth smtp.Auth
+			host, _, _ := net.SplitHostPort(currRemoteHost)
 
-			observeDuration(ctx, statusCode, time.Since(start))
-		}()
+			if currRemoteUser != "" && currRemotePass != "" {
+				switch currRemoteAuth {
+				case "plain":
+					auth = smtp.PlainAuth("", currRemoteUser, currRemotePass, host)
+				default:
+					return observeErr(ctx, smtpd.ErrUnsupportedAuthMethod)
+				}
+			}
 
-		err = smtp.SendMail(
-			cfg.remoteHost,
-			auth,
-			sender,
-			env.Recipients,
-			env.Data,
-		)
-		if err != nil {
-			err = fmt.Errorf("sendMail: %w", err)
+			env.AddReceivedLine(peer)
 
-			var tperr *textproto.Error
+			var sender string
 
-			if errors.As(err, &tperr) {
-				logger.ErrorContext(ctx, "delivery failed",
-					slog.Int("err_code", tperr.Code), slog.String("err_msg", tperr.Msg))
+			if currRemoteSender == "" {
+				sender = env.Sender
 			} else {
-				tperr = smtpd.ErrForwardingFailed
-
-				logger.ErrorContext(ctx, "delivery failed", slog.Any("error", err))
+				sender = currRemoteSender
 			}
 
-			statusCode = tperr.Code
+			msgSizeHistogram.Observe(float64(len(env.Data)))
 
-			return observeErr(ctx, tperr)
+			// successful status is always 250
+			statusCode := 250
+			start := time.Now()
+
+			defer func() {
+				span.SetAttributes(traceutil.StatusCode(statusCode))
+
+				observeDuration(ctx, statusCode, time.Since(start))
+			}()
+
+			err = smtp.SendMail(
+				currRemoteHost,
+				auth,
+				sender,
+				env.Recipients,
+				env.Data,
+			)
+			if err != nil {
+				err = fmt.Errorf("sendMail: %w", err)
+
+				var tperr *textproto.Error
+
+				if errors.As(err, &tperr) {
+					logger.ErrorContext(ctx, "delivery failed",
+						slog.Int("err_code", tperr.Code), slog.String("err_msg", tperr.Msg))
+				} else {
+					tperr = smtpd.ErrForwardingFailed
+
+					logger.ErrorContext(ctx, "delivery failed", slog.Any("error", err))
+				}
+
+				statusCode = tperr.Code
+
+				return observeErr(ctx, tperr)
+			}
+
+			deliveryLog.InfoContext(ctx, "delivery successful", slog.Int("status_code", statusCode))
 		}
-
-		deliveryLog.InfoContext(ctx, "delivery successful", slog.Int("status_code", statusCode))
 
 		return nil
 	}
