@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/grafana/smtprelay/v2/internal/smtpd"
+	"github.com/evidentiq/smtprelay/v2/internal/smtpd"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )

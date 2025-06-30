@@ -14,9 +14,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/evidentiq/smtprelay/v2/internal/smtpd"
+	"github.com/evidentiq/smtprelay/v2/internal/traceutil"
 	"github.com/google/uuid"
-	"github.com/grafana/smtprelay/v2/internal/smtpd"
-	"github.com/grafana/smtprelay/v2/internal/traceutil"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"

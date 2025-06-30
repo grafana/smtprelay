@@ -1,4 +1,4 @@
-module github.com/grafana/smtprelay/v2
+module github.com/evidentiq/smtprelay/v2
 
 go 1.23.1
 
