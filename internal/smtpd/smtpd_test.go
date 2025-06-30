@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/grafana/smtprelay/v2/internal/smtpd"
+	"github.com/evidentiq/smtprelay/v2/internal/smtpd"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
