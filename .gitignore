@@ -1,5 +1,6 @@
 /bin/
 smtprelay
+smtprelay.exe
 smtprelay.log
 *.ini
 !smtprelay.ini
