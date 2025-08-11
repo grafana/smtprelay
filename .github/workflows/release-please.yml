@@ -22,7 +22,7 @@ jobs:
             GITHUB_APP_ID=release-trigger:client-id
             GITHUB_APP_PRIVATE_KEY=release-trigger:private-key
           export_env: false
-      - uses: actions/create-github-app-token@df432ceedc7162793a195dd1713ff69aefc7379e # v2.0.6
+      - uses: actions/create-github-app-token@0f859bf9e69e887678d5bbfbee594437cb440ffe # v2.1.0
         id: app-token
         with:
           app-id: ${{ fromJSON(steps.get-secrets.outputs.secrets).GITHUB_APP_ID }}
