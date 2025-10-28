@@ -27,7 +27,8 @@ import (
 type relay struct {
 	server *smtpd.Server
 
-	cfg *config
+	cfg         *config
+	rateLimiter *rateLimiter
 }
 
 func newRelay(cfg *config) (*relay, error) {
@@ -61,10 +62,17 @@ func newRelay(cfg *config) (*relay, error) {
 		r.server.Authenticator = r.authChecker
 	}
 
+	if cfg.rateLimitEnabled {
+		r.rateLimiter = newRateLimiter(cfg.rateLimitMessagesPerMin, cfg.rateLimitBurst)
+	}
+
 	return r, nil
 }
 
 func (r *relay) serve(ctx context.Context, ln net.Listener) error {
+	if r.rateLimiter != nil {
+		r.rateLimiter.start(ctx)
+	}
 	return r.server.Serve(ctx, ln)
 }
 
@@ -302,6 +310,33 @@ func (r *relay) mailHandler(cfg *config) func(ctx context.Context, peer smtpd.Pe
 
 		deliveryLog.InfoContext(ctx, "delivering mail from peer using smarthost")
 
+		// successful status is always 250
+		statusCode := 250
+		start := time.Now()
+
+		defer func() {
+			span.SetAttributes(traceutil.StatusCode(statusCode))
+
+			observeDuration(ctx, statusCode, time.Since(start))
+		}()
+
+		// apply rate limiting if enabled
+		if r.rateLimiter != nil {
+			// use the sender as the slug for rate limiting
+			slug := env.Sender
+			switch {
+			case slug == "":
+				// allow requests with empty sender
+				logger.WarnContext(ctx, "empty sender address for rate limiting, allowing by default")
+			case !r.rateLimiter.allow(slug):
+				logger.WarnContext(ctx, "rate limit exceeded", slog.String("slug", slug))
+
+				statusCode = smtpd.ErrRateLimitExceeded.Code
+
+				return observeErr(ctx, smtpd.ErrRateLimitExceeded)
+			}
+		}
+
 		var auth smtp.Auth
 		host, _, _ := net.SplitHostPort(cfg.remoteHost)
 
@@ -310,6 +345,10 @@ func (r *relay) mailHandler(cfg *config) func(ctx context.Context, peer smtpd.Pe
 			case "plain":
 				auth = smtp.PlainAuth("", cfg.remoteUser, cfg.remotePass, host)
 			default:
+				logger.ErrorContext(ctx, "unsupported auth method", slog.String("method", cfg.remoteAuth))
+
+				statusCode = smtpd.ErrUnsupportedAuthMethod.Code
+
 				return observeErr(ctx, smtpd.ErrUnsupportedAuthMethod)
 			}
 		}
@@ -325,16 +364,6 @@ func (r *relay) mailHandler(cfg *config) func(ctx context.Context, peer smtpd.Pe
 		}
 
 		msgSizeHistogram.Observe(float64(len(env.Data)))
-
-		// successful status is always 250
-		statusCode := 250
-		start := time.Now()
-
-		defer func() {
-			span.SetAttributes(traceutil.StatusCode(statusCode))
-
-			observeDuration(ctx, statusCode, time.Since(start))
-		}()
 
 		err = smtp.SendMail(
 			cfg.remoteHost,

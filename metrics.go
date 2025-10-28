@@ -19,11 +19,12 @@ import (
 )
 
 var (
-	requestsCounter   prometheus.Counter
-	errorsCounter     *prometheus.CounterVec
-	durationHistogram *prometheus.HistogramVec
-	durationNative    *prometheus.HistogramVec
-	msgSizeHistogram  prometheus.Histogram
+	requestsCounter    prometheus.Counter
+	errorsCounter      *prometheus.CounterVec
+	durationHistogram  *prometheus.HistogramVec
+	durationNative     *prometheus.HistogramVec
+	msgSizeHistogram   prometheus.Histogram
+	rateLimitedCounter *prometheus.CounterVec
 )
 
 const mb = 1024 * 1024
@@ -70,6 +71,12 @@ func init() {
 		Help:      "size of messages",
 		Buckets:   []float64{0.05 * mb, 0.1 * mb, 0.25 * mb, 0.5 * mb, 1 * mb, 2 * mb, 5 * mb, 10 * mb, 20 * mb},
 	})
+
+	rateLimitedCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: ns,
+		Name:      "rate_limited_total",
+		Help:      "count of rate limited messages by slug",
+	}, []string{"slug"})
 }
 
 func registerMetrics(registry prometheus.Registerer) error {
@@ -90,6 +97,11 @@ func registerMetrics(registry prometheus.Registerer) error {
 		return err
 	}
 	err = registry.Register(msgSizeHistogram)
+	if err != nil {
+		return err
+	}
+
+	err = registry.Register(rateLimitedCounter)
 	if err != nil {
 		return err
 	}
