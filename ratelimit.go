@@ -10,8 +10,8 @@ import (
 
 // rateLimiter manages per-slug rate limiting using token buckets
 type rateLimiter struct {
-	mu       sync.Mutex
 	limiters map[string]*bucketEntry
+	mu       sync.Mutex
 
 	messagesPerMinute int
 	burst             int

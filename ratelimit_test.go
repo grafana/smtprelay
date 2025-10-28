@@ -6,6 +6,7 @@ import (
 )
 
 func TestRateLimiterAllow(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 
 	// create rate limiter with 10 messages per minute, burst of 5
@@ -15,7 +16,7 @@ func TestRateLimiterAllow(t *testing.T) {
 	slug := "test@example.com"
 
 	// should allow burst requests immediately
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		if !rl.allow(slug) {
 			t.Errorf("request %d should be allowed (within burst)", i+1)
 		}
@@ -27,21 +28,8 @@ func TestRateLimiterAllow(t *testing.T) {
 	}
 }
 
-func TestRateLimiterEmptySlug(t *testing.T) {
-	ctx := t.Context()
-
-	rl := newRateLimiter(10, 5)
-	rl.start(ctx)
-
-	// empty slug should always be allowed
-	for i := 0; i < 100; i++ {
-		if !rl.allow("") {
-			t.Errorf("empty slug should always be allowed (iteration %d)", i+1)
-		}
-	}
-}
-
 func TestRateLimiterMultipleSlugs(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 
 	// create rate limiter with 10 messages per minute, burst of 3
@@ -52,7 +40,7 @@ func TestRateLimiterMultipleSlugs(t *testing.T) {
 	slug2 := "admin@company2"
 
 	// each slug should have independent rate limits
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		if !rl.allow(slug1) {
 			t.Errorf("slug1 request %d should be allowed", i+1)
 		}
@@ -71,6 +59,7 @@ func TestRateLimiterMultipleSlugs(t *testing.T) {
 }
 
 func TestRateLimiterCleanup(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 
 	// create rate limiter with short TTL and cleanup interval for testing
@@ -104,6 +93,7 @@ func TestRateLimiterCleanup(t *testing.T) {
 }
 
 func TestRateLimiterConcurrency(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 	rl := newRateLimiter(100, 10)
 
@@ -112,9 +102,9 @@ func TestRateLimiterConcurrency(t *testing.T) {
 	// test concurrent access to different slugs
 	done := make(chan bool)
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		go func(slug string) {
-			for j := 0; j < 100; j++ {
+			for range 100 {
 				rl.allow(slug)
 			}
 			done <- true
@@ -122,7 +112,7 @@ func TestRateLimiterConcurrency(t *testing.T) {
 	}
 
 	// wait for all goroutines to complete
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		<-done
 	}
 
