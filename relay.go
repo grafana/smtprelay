@@ -282,7 +282,8 @@ func (r *relay) mailHandler(cfg *config) func(ctx context.Context, peer smtpd.Pe
 		link := trace.LinkFromContext(ctx)
 
 		tprop := otel.GetTextMapPropagator()
-		ctx = tprop.Extract(ctx, traceutil.MIMEHeaderCarrier(env.Header))
+		carrier := traceutil.MIMEHeaderCarrier(env.Header)
+		ctx = tprop.Extract(ctx, carrier)
 		ctx, span := tracer.Start(ctx, "relay.mailHandler",
 			trace.WithSpanKind(trace.SpanKindServer),
 			trace.WithLinks(link),
@@ -323,10 +324,14 @@ func (r *relay) mailHandler(cfg *config) func(ctx context.Context, peer smtpd.Pe
 		// apply rate limiting if enabled
 		if r.rateLimiter != nil {
 			sender := env.Sender
+			if r.cfg.rateLimitHeader != "" {
+				// extract sender from header for rate limiting, if configured
+				sender = carrier.Get(r.cfg.rateLimitHeader)
+			}
 			switch {
 			case sender == "":
 				// allow requests with empty sender
-				logger.WarnContext(ctx, "empty sender address for rate limiting, allowing by default")
+				logger.WarnContext(ctx, "rate limiting sender is empty, skipping rate limit check")
 			case !r.rateLimiter.allow(sender):
 				logger.WarnContext(ctx, "rate limit exceeded", slog.String("sender", sender))
 

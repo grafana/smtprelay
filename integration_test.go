@@ -87,6 +87,11 @@ func sendMsg(t *testing.T, addr string, to []string, from, subject string, hdrs 
 // metrics registry, provide a good way to shut down the server, etc...)
 func startRelay(ctx context.Context, t *testing.T, srvAddr string) string {
 	t.Helper()
+	return startRelayWithConfig(ctx, t, srvAddr, nil)
+}
+
+func startRelayWithConfig(ctx context.Context, t *testing.T, srvAddr string, cfgOverrides func(*config)) string {
+	t.Helper()
 
 	addr := ""
 	// pick a random port
@@ -104,6 +109,10 @@ func startRelay(ctx context.Context, t *testing.T, srvAddr string) string {
 			metricsListen: "127.0.0.1:0",
 			remoteHost:    srvAddr,
 			logLevel:      "debug",
+		}
+
+		if cfgOverrides != nil {
+			cfgOverrides(cfg)
 		}
 
 		_ = run(ctx, cfg)
@@ -124,10 +133,7 @@ func startRelay(ctx context.Context, t *testing.T, srvAddr string) string {
 }
 
 func TestSendMail(t *testing.T) {
-	t.Parallel()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
+	ctx := t.Context()
 
 	srv := startTestSMTPServer(ctx, t)
 
@@ -151,4 +157,63 @@ func TestSendMail(t *testing.T) {
 	line, err := msg.ReadLine()
 	require.NoError(t, err)
 	assert.Equal(t, "hello world", line)
+}
+
+func TestRateLimitBySender(t *testing.T) {
+	ctx := t.Context()
+
+	srv := startTestSMTPServer(ctx, t)
+
+	addr := startRelayWithConfig(ctx, t, srv.addr, func(cfg *config) {
+		cfg.rateLimitEnabled = true
+		cfg.rateLimitMessagesPerMin = 1
+		cfg.rateLimitBurst = 1
+	})
+
+	// first message should be accepted
+	err := sendMsg(t, addr, []string{"alice@example.com"}, "bob@example.com", "message 1", textproto.MIMEHeader{}, "body 1")
+	require.NoError(t, err)
+
+	// second message from same sender should be rate limited
+	err = sendMsg(t, addr, []string{"alice@example.com"}, "bob@example.com", "message 2", textproto.MIMEHeader{}, "body 2")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "421")
+
+	// third message from different sender should be accepted
+	err = sendMsg(t, addr, []string{"alice@example.com"}, "charlie@example.com", "message 3", textproto.MIMEHeader{}, "body 3")
+	require.NoError(t, err)
+
+	// verify two messages received
+	assert.Len(t, *srv.msgs, 2)
+}
+
+func TestRateLimitByHeader(t *testing.T) {
+	ctx := t.Context()
+
+	srv := startTestSMTPServer(ctx, t)
+
+	addr := startRelayWithConfig(ctx, t, srv.addr, func(cfg *config) {
+		cfg.rateLimitEnabled = true
+		cfg.rateLimitMessagesPerMin = 1
+		cfg.rateLimitBurst = 1
+		cfg.rateLimitHeader = "X-Sender-ID"
+	})
+
+	// first message should be accepted
+	headers := textproto.MIMEHeader{"X-Sender-ID": []string{"user-123"}}
+	err := sendMsg(t, addr, []string{"alice@example.com"}, "bob@example.com", "message 1", headers, "body 1")
+	require.NoError(t, err)
+
+	// second message with same header value should be rate limited
+	err = sendMsg(t, addr, []string{"alice@example.com"}, "bob@example.com", "message 2", headers, "body 2")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "421")
+
+	// third message with different header value should be accepted
+	headers2 := textproto.MIMEHeader{"X-Sender-ID": []string{"user-456"}}
+	err = sendMsg(t, addr, []string{"alice@example.com"}, "bob@example.com", "message 3", headers2, "body 3")
+	require.NoError(t, err)
+
+	// verify two messages received
+	assert.Len(t, *srv.msgs, 2)
 }

@@ -45,6 +45,7 @@ type config struct {
 	rateLimitEnabled        bool
 	rateLimitMessagesPerMin int
 	rateLimitBurst          int
+	rateLimitHeader         string
 
 	allowedNets []*net.IPNet
 	logHeaders  map[string]string
@@ -134,6 +135,7 @@ func registerFlags(f *flag.FlagSet, cfg *config) {
 	f.BoolVar(&cfg.rateLimitEnabled, "rate_limit_enabled", false, "Enable per-sender rate limiting")
 	f.IntVar(&cfg.rateLimitMessagesPerMin, "rate_limit_messages_per_minute", 60, "Maximum messages per minute per sender")
 	f.IntVar(&cfg.rateLimitBurst, "rate_limit_burst", 10, "Burst capacity for rate limiter")
+	f.StringVar(&cfg.rateLimitHeader, "rate_limit_header", "", "Email header to extract sender identity for rate limiting (by default, the sender address is used)")
 }
 
 // parse the input into a map[string]string. It should be in the form of
