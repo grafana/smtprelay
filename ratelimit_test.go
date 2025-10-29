@@ -9,8 +9,8 @@ func TestRateLimiterAllow(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 
-	// create rate limiter with 10 messages per minute, burst of 5
-	rl := newRateLimiter(10, 5)
+	// create rate limiter with 0.1 messages per second, burst of 5
+	rl := newRateLimiter(0.1, 5)
 	rl.start(ctx)
 
 	sender := "test@example.com"
@@ -32,8 +32,8 @@ func TestRateLimiterMultipleSenders(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 
-	// create rate limiter with 10 messages per minute, burst of 3
-	rl := newRateLimiter(10, 3)
+	// create rate limiter with 0.1 messages per second, burst of 3
+	rl := newRateLimiter(0.1, 3)
 	rl.start(ctx)
 
 	sender1 := "admin@company1"
