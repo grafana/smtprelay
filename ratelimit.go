@@ -8,7 +8,7 @@ import (
 	"golang.org/x/time/rate"
 )
 
-// rateLimiter manages per-slug rate limiting using token buckets
+// rateLimiter manages per-sender rate limiting using token buckets
 type rateLimiter struct {
 	limiters map[string]*bucketEntry
 	mu       sync.Mutex
@@ -41,23 +41,23 @@ func (rl *rateLimiter) start(ctx context.Context) {
 	go rl.cleanupLoop(ctx)
 }
 
-// allow checks if a request for the given slug should be allowed
-func (rl *rateLimiter) allow(slug string) bool {
-	limiter := rl.getLimiter(slug)
+// allow checks if a request for the given sender should be allowed
+func (rl *rateLimiter) allow(sender string) bool {
+	limiter := rl.getLimiter(sender)
 
 	if !limiter.Allow() {
-		rateLimitedCounter.WithLabelValues(slug).Inc()
+		rateLimitedCounter.WithLabelValues(sender).Inc()
 		return false
 	}
 
 	return true
 }
 
-// getLimiter returns the rate limiter for a given slug, creating one if needed
-func (rl *rateLimiter) getLimiter(slug string) *rate.Limiter {
+// getLimiter returns the rate limiter for a given sender, creating one if needed
+func (rl *rateLimiter) getLimiter(sender string) *rate.Limiter {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
-	entry, exists := rl.limiters[slug]
+	entry, exists := rl.limiters[sender]
 	if exists {
 		entry.lastAccess = time.Now()
 		return entry.limiter
@@ -66,7 +66,7 @@ func (rl *rateLimiter) getLimiter(slug string) *rate.Limiter {
 	perSecond := rate.Limit(float64(rl.messagesPerMinute) / 60.0)
 	limiter := rate.NewLimiter(perSecond, rl.burst)
 
-	rl.limiters[slug] = &bucketEntry{
+	rl.limiters[sender] = &bucketEntry{
 		limiter:    limiter,
 		lastAccess: time.Now(),
 	}
@@ -94,9 +94,9 @@ func (rl *rateLimiter) cleanup() {
 	defer rl.mu.Unlock()
 
 	now := time.Now()
-	for slug, entry := range rl.limiters {
+	for sender, entry := range rl.limiters {
 		if now.Sub(entry.lastAccess) > rl.bucketTTL {
-			delete(rl.limiters, slug)
+			delete(rl.limiters, sender)
 		}
 	}
 }

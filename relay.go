@@ -322,14 +322,13 @@ func (r *relay) mailHandler(cfg *config) func(ctx context.Context, peer smtpd.Pe
 
 		// apply rate limiting if enabled
 		if r.rateLimiter != nil {
-			// use the sender as the slug for rate limiting
-			slug := env.Sender
+			sender := env.Sender
 			switch {
-			case slug == "":
+			case sender == "":
 				// allow requests with empty sender
 				logger.WarnContext(ctx, "empty sender address for rate limiting, allowing by default")
-			case !r.rateLimiter.allow(slug):
-				logger.WarnContext(ctx, "rate limit exceeded", slog.String("slug", slug))
+			case !r.rateLimiter.allow(sender):
+				logger.WarnContext(ctx, "rate limit exceeded", slog.String("sender", sender))
 
 				statusCode = smtpd.ErrRateLimitExceeded.Code
 

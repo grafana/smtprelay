@@ -75,8 +75,8 @@ func init() {
 	rateLimitedCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: ns,
 		Name:      "rate_limited_total",
-		Help:      "count of rate limited messages by slug",
-	}, []string{"slug"})
+		Help:      "count of rate limited messages by sender",
+	}, []string{"sender"})
 }
 
 func registerMetrics(registry prometheus.Registerer) error {

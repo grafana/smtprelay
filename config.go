@@ -131,8 +131,8 @@ func registerFlags(f *flag.FlagSet, cfg *config) {
 	f.BoolVar(&cfg.versionInfo, "version", false, "Show version information")
 	f.StringVar(&cfg.logLevel, "log_level", "debug", "Minimum log level to output")
 	f.StringVar(&cfg.logHeadersStr, "log_header", "", "Log this mail header's value (log_field=Header-Name) set multiples with spaces")
-	f.BoolVar(&cfg.rateLimitEnabled, "rate_limit_enabled", false, "Enable per-slug rate limiting")
-	f.IntVar(&cfg.rateLimitMessagesPerMin, "rate_limit_messages_per_minute", 60, "Maximum messages per minute per slug")
+	f.BoolVar(&cfg.rateLimitEnabled, "rate_limit_enabled", false, "Enable per-sender rate limiting")
+	f.IntVar(&cfg.rateLimitMessagesPerMin, "rate_limit_messages_per_minute", 60, "Maximum messages per minute per sender")
 	f.IntVar(&cfg.rateLimitBurst, "rate_limit_burst", 10, "Burst capacity for rate limiter")
 }
 

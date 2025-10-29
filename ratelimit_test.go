@@ -13,22 +13,22 @@ func TestRateLimiterAllow(t *testing.T) {
 	rl := newRateLimiter(10, 5)
 	rl.start(ctx)
 
-	slug := "test@example.com"
+	sender := "test@example.com"
 
 	// should allow burst requests immediately
 	for i := range 5 {
-		if !rl.allow(slug) {
+		if !rl.allow(sender) {
 			t.Errorf("request %d should be allowed (within burst)", i+1)
 		}
 	}
 
 	// next request should be denied (burst exhausted)
-	if rl.allow(slug) {
+	if rl.allow(sender) {
 		t.Error("request should be denied after burst exhausted")
 	}
 }
 
-func TestRateLimiterMultipleSlugs(t *testing.T) {
+func TestRateLimiterMultipleSenders(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 
@@ -36,25 +36,25 @@ func TestRateLimiterMultipleSlugs(t *testing.T) {
 	rl := newRateLimiter(10, 3)
 	rl.start(ctx)
 
-	slug1 := "admin@company1"
-	slug2 := "admin@company2"
+	sender1 := "admin@company1"
+	sender2 := "admin@company2"
 
-	// each slug should have independent rate limits
+	// each sender should have independent rate limits
 	for i := range 3 {
-		if !rl.allow(slug1) {
-			t.Errorf("slug1 request %d should be allowed", i+1)
+		if !rl.allow(sender1) {
+			t.Errorf("sender1 request %d should be allowed", i+1)
 		}
-		if !rl.allow(slug2) {
-			t.Errorf("slug2 request %d should be allowed", i+1)
+		if !rl.allow(sender2) {
+			t.Errorf("sender2 request %d should be allowed", i+1)
 		}
 	}
 
-	// both slugs should be rate limited now
-	if rl.allow(slug1) {
-		t.Error("slug1 should be rate limited")
+	// both senders should be rate limited now
+	if rl.allow(sender1) {
+		t.Error("sender1 should be rate limited")
 	}
-	if rl.allow(slug2) {
-		t.Error("slug2 should be rate limited")
+	if rl.allow(sender2) {
+		t.Error("sender2 should be rate limited")
 	}
 }
 
@@ -68,10 +68,10 @@ func TestRateLimiterCleanup(t *testing.T) {
 	rl.cleanupInterval = 100 * time.Millisecond
 	rl.start(ctx)
 
-	slug := "test@example.com"
+	sender := "test@example.com"
 
 	// create a bucket
-	rl.allow(slug)
+	rl.allow(sender)
 
 	// check bucket exists
 	rl.mu.Lock()
@@ -99,13 +99,13 @@ func TestRateLimiterConcurrency(t *testing.T) {
 
 	rl.start(ctx)
 
-	// test concurrent access to different slugs
+	// test concurrent access to different senders
 	done := make(chan bool)
 
 	for i := range 10 {
-		go func(slug string) {
+		go func(sender string) {
 			for range 100 {
-				rl.allow(slug)
+				rl.allow(sender)
 			}
 			done <- true
 		}(string(rune('a' + i)))
