@@ -42,10 +42,10 @@ type config struct {
 	logLevel          string
 	logHeadersStr     string
 
-	rateLimitEnabled        bool
-	rateLimitMessagesPerMin int
-	rateLimitBurst          int
-	rateLimitHeader         string
+	rateLimitEnabled           bool
+	rateLimitMessagesPerSecond float64
+	rateLimitBurst             int
+	rateLimitHeader            string
 
 	allowedNets []*net.IPNet
 	logHeaders  map[string]string
@@ -133,8 +133,8 @@ func registerFlags(f *flag.FlagSet, cfg *config) {
 	f.StringVar(&cfg.logLevel, "log_level", "debug", "Minimum log level to output")
 	f.StringVar(&cfg.logHeadersStr, "log_header", "", "Log this mail header's value (log_field=Header-Name) set multiples with spaces")
 	f.BoolVar(&cfg.rateLimitEnabled, "rate_limit_enabled", false, "Enable per-sender rate limiting")
-	f.IntVar(&cfg.rateLimitMessagesPerMin, "rate_limit_messages_per_minute", 60, "Maximum messages per minute per sender")
-	f.IntVar(&cfg.rateLimitBurst, "rate_limit_burst", 10, "Burst capacity for rate limiter")
+	f.Float64Var(&cfg.rateLimitMessagesPerSecond, "rate_limit_messages_per_second", 10, "Maximum messages per second per sender")
+	f.IntVar(&cfg.rateLimitBurst, "rate_limit_burst", 5, "Burst capacity for rate limiter")
 	f.StringVar(&cfg.rateLimitHeader, "rate_limit_header", "", "Email header to extract sender identity for rate limiting (by default, the sender address is used)")
 }
 

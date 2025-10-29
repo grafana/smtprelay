@@ -168,7 +168,7 @@ func TestRateLimitBySender(t *testing.T) {
 
 	addr := startRelayWithConfig(ctx, t, srv.addr, func(cfg *config) {
 		cfg.rateLimitEnabled = true
-		cfg.rateLimitMessagesPerMin = 1
+		cfg.rateLimitMessagesPerSecond = 1
 		cfg.rateLimitBurst = 1
 	})
 
@@ -197,7 +197,7 @@ func TestRateLimitByHeader(t *testing.T) {
 
 	addr := startRelayWithConfig(ctx, t, srv.addr, func(cfg *config) {
 		cfg.rateLimitEnabled = true
-		cfg.rateLimitMessagesPerMin = 1
+		cfg.rateLimitMessagesPerSecond = 1
 		cfg.rateLimitBurst = 1
 		cfg.rateLimitHeader = "X-Sender-ID"
 	})

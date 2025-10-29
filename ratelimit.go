@@ -13,7 +13,7 @@ type rateLimiter struct {
 	limiters map[string]*bucketEntry
 	mu       sync.Mutex
 
-	messagesPerMinute int
+	messagesPerSecond float64
 	burst             int
 	cleanupInterval   time.Duration
 	bucketTTL         time.Duration
@@ -26,10 +26,10 @@ type bucketEntry struct {
 }
 
 // newRateLimiter creates a new rate limiter with the given configuration
-func newRateLimiter(messagesPerMinute, burst int) *rateLimiter {
+func newRateLimiter(messagesPerSecond float64, burst int) *rateLimiter {
 	return &rateLimiter{
 		limiters:          make(map[string]*bucketEntry),
-		messagesPerMinute: messagesPerMinute,
+		messagesPerSecond: messagesPerSecond,
 		burst:             burst,
 		cleanupInterval:   15 * time.Minute,
 		bucketTTL:         1 * time.Hour,
@@ -43,14 +43,7 @@ func (rl *rateLimiter) start(ctx context.Context) {
 
 // allow checks if a request for the given sender should be allowed
 func (rl *rateLimiter) allow(sender string) bool {
-	limiter := rl.getLimiter(sender)
-
-	if !limiter.Allow() {
-		rateLimitedCounter.WithLabelValues(sender).Inc()
-		return false
-	}
-
-	return true
+	return rl.getLimiter(sender).Allow()
 }
 
 // getLimiter returns the rate limiter for a given sender, creating one if needed
@@ -63,8 +56,7 @@ func (rl *rateLimiter) getLimiter(sender string) *rate.Limiter {
 		return entry.limiter
 	}
 
-	perSecond := rate.Limit(float64(rl.messagesPerMinute) / 60.0)
-	limiter := rate.NewLimiter(perSecond, rl.burst)
+	limiter := rate.NewLimiter(rate.Limit(rl.messagesPerSecond), rl.burst)
 
 	rl.limiters[sender] = &bucketEntry{
 		limiter:    limiter,

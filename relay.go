@@ -63,7 +63,7 @@ func newRelay(cfg *config) (*relay, error) {
 	}
 
 	if cfg.rateLimitEnabled {
-		r.rateLimiter = newRateLimiter(cfg.rateLimitMessagesPerMin, cfg.rateLimitBurst)
+		r.rateLimiter = newRateLimiter(cfg.rateLimitMessagesPerSecond, cfg.rateLimitBurst)
 	}
 
 	return r, nil
@@ -336,6 +336,8 @@ func (r *relay) mailHandler(cfg *config) func(ctx context.Context, peer smtpd.Pe
 				logger.WarnContext(ctx, "rate limit exceeded", slog.String("sender", sender))
 
 				statusCode = smtpd.ErrRateLimitExceeded.Code
+
+				rateLimitedCounter.WithLabelValues(sender).Inc()
 
 				return observeErr(ctx, smtpd.ErrRateLimitExceeded)
 			}
