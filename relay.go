@@ -337,7 +337,7 @@ func (r *relay) mailHandler(cfg *config) func(ctx context.Context, peer smtpd.Pe
 
 				statusCode = smtpd.ErrRateLimitExceeded.Code
 
-				rateLimitedCounter.WithLabelValues(sender).Inc()
+				rateLimitedCounter.Inc()
 
 				return observeErr(ctx, smtpd.ErrRateLimitExceeded)
 			}

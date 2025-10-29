@@ -24,7 +24,7 @@ var (
 	durationHistogram  *prometheus.HistogramVec
 	durationNative     *prometheus.HistogramVec
 	msgSizeHistogram   prometheus.Histogram
-	rateLimitedCounter *prometheus.CounterVec
+	rateLimitedCounter prometheus.Counter
 )
 
 const mb = 1024 * 1024
@@ -72,11 +72,11 @@ func init() {
 		Buckets:   []float64{0.05 * mb, 0.1 * mb, 0.25 * mb, 0.5 * mb, 1 * mb, 2 * mb, 5 * mb, 10 * mb, 20 * mb},
 	})
 
-	rateLimitedCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+	rateLimitedCounter = prometheus.NewCounter(prometheus.CounterOpts{
 		Namespace: ns,
 		Name:      "rate_limited_total",
-		Help:      "count of rate limited messages by sender",
-	}, []string{"sender"})
+		Help:      "count of rate limited messages",
+	})
 }
 
 func registerMetrics(registry prometheus.Registerer) error {
