@@ -132,6 +132,7 @@ func startRelayWithConfig(ctx context.Context, t *testing.T, srvAddr string, cfg
 	return addr
 }
 
+//nolint:paralleltest
 func TestSendMail(t *testing.T) {
 	ctx := t.Context()
 
@@ -159,6 +160,7 @@ func TestSendMail(t *testing.T) {
 	assert.Equal(t, "hello world", line)
 }
 
+//nolint:paralleltest
 func TestRateLimitBySender(t *testing.T) {
 	ctx := t.Context()
 
@@ -187,6 +189,7 @@ func TestRateLimitBySender(t *testing.T) {
 	assert.Len(t, *srv.msgs, 2)
 }
 
+//nolint:paralleltest
 func TestRateLimitByHeader(t *testing.T) {
 	ctx := t.Context()
 
