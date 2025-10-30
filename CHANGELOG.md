@@ -1,5 +1,57 @@
 # Changelog
 
+## [2.3.0](https://github.com/grafana/smtprelay/compare/v2.2.3...v2.3.0) (2025-10-30)
+
+
+### Features
+
+* configurable rate limiting ([#421](https://github.com/grafana/smtprelay/issues/421)) ([a9b2da7](https://github.com/grafana/smtprelay/commit/a9b2da7fd96f4521719d6a11e7ac31a79e622ddc))
+
+
+### Dependencies
+
+* **actions:** bump actions/checkout from 4 to 5 ([#333](https://github.com/grafana/smtprelay/issues/333)) ([0062b77](https://github.com/grafana/smtprelay/commit/0062b77ed429f3bc06b5cdef81532804895886a0))
+* **actions:** bump actions/create-github-app-token from 2.0.6 to 2.1.1 ([#334](https://github.com/grafana/smtprelay/issues/334)) ([a0b27d9](https://github.com/grafana/smtprelay/commit/a0b27d9b04394d6e442616b7a8fc34ca24b7e14a))
+* **actions:** bump actions/create-github-app-token from 2.1.1 to 2.1.4 ([#379](https://github.com/grafana/smtprelay/issues/379)) ([8d9dde9](https://github.com/grafana/smtprelay/commit/8d9dde94f32ca7815d035d2e922eb2b3f6afc7c7))
+* **actions:** bump actions/setup-go from 5 to 6 ([#362](https://github.com/grafana/smtprelay/issues/362)) ([b20b990](https://github.com/grafana/smtprelay/commit/b20b9901f274cb27f5ccb6e065da6c96bced6c2f))
+* **actions:** bump aquasecurity/setup-trivy from 0.2.3 to 0.2.4 ([#359](https://github.com/grafana/smtprelay/issues/359)) ([b2a0bff](https://github.com/grafana/smtprelay/commit/b2a0bff03f0e5679d6f8176bfe481787871e872e))
+* **actions:** bump github/codeql-action from 3.28.18 to 3.28.19 ([#276](https://github.com/grafana/smtprelay/issues/276)) ([be5915f](https://github.com/grafana/smtprelay/commit/be5915fec4ab30c9fa23b766d04ff7bae3ea58ca))
+* **actions:** bump github/codeql-action from 3.28.19 to 3.29.0 ([#283](https://github.com/grafana/smtprelay/issues/283)) ([de6a333](https://github.com/grafana/smtprelay/commit/de6a333edf4da72d2d67710e52d34879eb7ec7f4))
+* **actions:** bump github/codeql-action from 3.29.0 to 3.29.2 ([#293](https://github.com/grafana/smtprelay/issues/293)) ([e329fe8](https://github.com/grafana/smtprelay/commit/e329fe866b612fbf6b614b9d6bbe9826ad277bb2))
+* **actions:** bump github/codeql-action from 3.29.2 to 3.29.9 ([#335](https://github.com/grafana/smtprelay/issues/335)) ([7e0c10d](https://github.com/grafana/smtprelay/commit/7e0c10d41a173bd7126c4365eefd10fd8a18f656))
+* **actions:** bump github/codeql-action from 3.29.9 to 4.31.0 ([#418](https://github.com/grafana/smtprelay/issues/418)) ([8490f5a](https://github.com/grafana/smtprelay/commit/8490f5a6dcd3c1427077273a3f59b82faf597a73))
+* **actions:** bump googleapis/release-please-action from 4.2.0 to 4.4.0 ([#416](https://github.com/grafana/smtprelay/issues/416)) ([8da5c08](https://github.com/grafana/smtprelay/commit/8da5c08f4d3462c2a85218598a7243a804b475d0))
+* **actions:** bump grafana/shared-workflows ([#275](https://github.com/grafana/smtprelay/issues/275)) ([b2a60ba](https://github.com/grafana/smtprelay/commit/b2a60ba1e62df1fb2c113cea36cbfcb4e6db470a))
+* **actions:** bump grafana/shared-workflows ([#284](https://github.com/grafana/smtprelay/issues/284)) ([f9c140d](https://github.com/grafana/smtprelay/commit/f9c140dbb8f1197969ecbe6c840d6a775a0bdb98))
+* **actions:** bump grafana/shared-workflows ([#296](https://github.com/grafana/smtprelay/issues/296)) ([6c6a00b](https://github.com/grafana/smtprelay/commit/6c6a00bfa2d01a85863116a093f68126aa3d4572))
+* **actions:** bump grafana/shared-workflows ([#336](https://github.com/grafana/smtprelay/issues/336)) ([af0a25b](https://github.com/grafana/smtprelay/commit/af0a25b2259f664e8b5c032882644c15257c05f7))
+* **actions:** bump grafana/shared-workflows ([#338](https://github.com/grafana/smtprelay/issues/338)) ([c367504](https://github.com/grafana/smtprelay/commit/c367504c7599d564079b09779b88b911182776c7))
+* **actions:** bump grafana/shared-workflows ([#415](https://github.com/grafana/smtprelay/issues/415)) ([ac860bb](https://github.com/grafana/smtprelay/commit/ac860bbb878502bd600f998e75bd9d4ef660516d))
+* **actions:** bump grafana/shared-workflows ([#424](https://github.com/grafana/smtprelay/issues/424)) ([ecdd592](https://github.com/grafana/smtprelay/commit/ecdd592fd84a64577cc4708508c836bee8fbb0a7))
+* **actions:** update grafana/shared-workflows requirement to 5e3deaf6734ec48f298adadad5fb2d12a2139907 ([#266](https://github.com/grafana/smtprelay/issues/266)) ([90f6e57](https://github.com/grafana/smtprelay/commit/90f6e57cb93a090d0bd5f37c756ab9036fa9a277))
+* bump go versino to 1.25.3 ([#425](https://github.com/grafana/smtprelay/issues/425)) ([151d536](https://github.com/grafana/smtprelay/commit/151d5368cd0e1472a74961946965ebd1ef8c454e))
+* **docker:** bump alpine from `4bcff63` to `4b7ce07` ([#402](https://github.com/grafana/smtprelay/issues/402)) ([300ec70](https://github.com/grafana/smtprelay/commit/300ec70b8179834bc9e11dbc281e0d3d2cf9d038))
+* **docker:** bump alpine from `8a1f59f` to `4bcff63` ([#306](https://github.com/grafana/smtprelay/issues/306)) ([d6ceb77](https://github.com/grafana/smtprelay/commit/d6ceb7706556be8ffd357660f99347d5eec33f71))
+* **docker:** bump alpine from 3.21 to 3.22 ([#274](https://github.com/grafana/smtprelay/issues/274)) ([697a4fd](https://github.com/grafana/smtprelay/commit/697a4fd58d72a63a2b5f228b5fd57c598a9904e6))
+* **docker:** bump golang from `68932fa` to `ddf5200` ([#300](https://github.com/grafana/smtprelay/issues/300)) ([0a20786](https://github.com/grafana/smtprelay/commit/0a20786e40d4d6b4c34d70602b348a591907c879))
+* **docker:** bump golang from `77dd832` to `f18a072` ([#341](https://github.com/grafana/smtprelay/issues/341)) ([d97b61e](https://github.com/grafana/smtprelay/commit/d97b61e9193e9af14151d40f9181e690163462c1))
+* **docker:** bump golang from `b4f875e` to `68932fa` ([#278](https://github.com/grafana/smtprelay/issues/278)) ([247e707](https://github.com/grafana/smtprelay/commit/247e707a5e4ff2eaeb9d1794624616e0052c7503))
+* **docker:** bump golang from `ef18ee7` to `b4f875e` ([#273](https://github.com/grafana/smtprelay/issues/273)) ([4de6087](https://github.com/grafana/smtprelay/commit/4de6087bdea79565d3105f38a0bc5260592410c7))
+* **docker:** bump golang from `f18a072` to `aee43c3` ([#426](https://github.com/grafana/smtprelay/issues/426)) ([c3e1a18](https://github.com/grafana/smtprelay/commit/c3e1a1855fbf3bd22485e149c1179c7c9de59086))
+* **docker:** bump golang from 1.24-alpine to 1.25-alpine ([#339](https://github.com/grafana/smtprelay/issues/339)) ([e8be75c](https://github.com/grafana/smtprelay/commit/e8be75c90b2b8e5abf3881c1516d75027241e1a2))
+* **go:** bump github.com/grafana/pyroscope-go/godeltaprof ([#353](https://github.com/grafana/smtprelay/issues/353)) ([d597ea5](https://github.com/grafana/smtprelay/commit/d597ea5981aebdf227904959eb2e4b7416b66375))
+* **go:** bump github.com/prometheus/client_golang from 1.22.0 to 1.23.0 ([#321](https://github.com/grafana/smtprelay/issues/321)) ([d0407c9](https://github.com/grafana/smtprelay/commit/d0407c902eb30db8d05682774f69207d4f01f1a6))
+* **go:** bump github.com/prometheus/client_golang from 1.23.0 to 1.23.2 ([#367](https://github.com/grafana/smtprelay/issues/367)) ([47c100b](https://github.com/grafana/smtprelay/commit/47c100b526ca0b022daf1745c8403bee394678e3))
+* **go:** bump github.com/prometheus/common from 0.64.0 to 0.65.0 ([#290](https://github.com/grafana/smtprelay/issues/290)) ([d27dee1](https://github.com/grafana/smtprelay/commit/d27dee1d9779472ffa84faf14eca1800132757bf))
+* **go:** bump github.com/prometheus/common from 0.65.0 to 0.67.2 ([#423](https://github.com/grafana/smtprelay/issues/423)) ([368603b](https://github.com/grafana/smtprelay/commit/368603b4d169fece29c16c7d6d52f7e07373888c))
+* **go:** bump Go to 1.24.6 ([#337](https://github.com/grafana/smtprelay/issues/337)) ([75c30a9](https://github.com/grafana/smtprelay/commit/75c30a9622fc29dd2c88678cd5ac6d2027697a4e))
+* **go:** bump go.opentelemetry.io/contrib/samplers/jaegerremote ([#265](https://github.com/grafana/smtprelay/issues/265)) ([265210c](https://github.com/grafana/smtprelay/commit/265210c748b20ae78fc929d12026b5607a442f0a))
+* **go:** bump golang.org/x/crypto from 0.38.0 to 0.39.0 ([#279](https://github.com/grafana/smtprelay/issues/279)) ([4cc78d4](https://github.com/grafana/smtprelay/commit/4cc78d46a19f28100175ef29e939df4064d6b99e))
+* **go:** bump golang.org/x/crypto from 0.39.0 to 0.41.0 ([#326](https://github.com/grafana/smtprelay/issues/326)) ([6408553](https://github.com/grafana/smtprelay/commit/64085530cd5547f4b64bd4a826fc7d7b366a55d3))
+* **go:** bump golang.org/x/crypto from 0.41.0 to 0.43.0 ([#401](https://github.com/grafana/smtprelay/issues/401)) ([8b34089](https://github.com/grafana/smtprelay/commit/8b340894346c82e15ddb30e6f3fc88e54b7084b9))
+* **go:** bump the go-opentelemetry-io group with 5 updates ([#291](https://github.com/grafana/smtprelay/issues/291)) ([961485d](https://github.com/grafana/smtprelay/commit/961485d6c851c890ae85c2c829160da31d642a59))
+* **go:** bump the go-opentelemetry-io group with 5 updates ([#358](https://github.com/grafana/smtprelay/issues/358)) ([fbf270b](https://github.com/grafana/smtprelay/commit/fbf270b6ea04a7971d24d3d2a0988f0d8f4bb457))
+
 ## [2.2.3](https://github.com/grafana/smtprelay/compare/v2.2.2...v2.2.3) (2025-05-22)
 
 
