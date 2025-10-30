@@ -5,7 +5,7 @@ go 1.25.3
 require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/google/uuid v1.6.0
-	github.com/grafana/pyroscope-go/godeltaprof v0.1.8
+	github.com/grafana/pyroscope-go/godeltaprof v0.1.9
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/common v0.67.2
 	github.com/stretchr/testify v1.11.1
