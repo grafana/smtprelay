@@ -5,6 +5,7 @@ import "net/textproto"
 var (
 	ErrBusy              = &textproto.Error{Code: 421, Msg: "Too busy. Try again later."}
 	ErrIPDenied          = &textproto.Error{Code: 421, Msg: "Denied - IP out of allowed network range"}
+	ErrRateLimitExceeded = &textproto.Error{Code: 421, Msg: "Rate limit exceeded. Try again later."}
 	ErrRecipientDenied   = &textproto.Error{Code: 451, Msg: "Denied recipient address"}
 	ErrRecipientInvalid  = &textproto.Error{Code: 451, Msg: "Invalid recipient address"}
 	ErrSenderDenied      = &textproto.Error{Code: 451, Msg: "sender address not allowed"}
