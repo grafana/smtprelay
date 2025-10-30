@@ -1,6 +1,6 @@
 module github.com/grafana/smtprelay/v2
 
-go 1.24.6
+go 1.25.3
 
 require (
 	github.com/Masterminds/semver v1.5.0
