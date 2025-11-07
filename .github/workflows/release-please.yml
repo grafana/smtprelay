@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Get App Credentials from Vault
-        uses: grafana/shared-workflows/actions/get-vault-secrets@828a377eed7ee1bc58ab4c0242440368812bdc02 # 1.2.0
+        uses: grafana/shared-workflows/actions/get-vault-secrets@3616cd00d1e75efc2b41da6e51975c6eacb91d3c # 1.2.0
         id: get-secrets
         with:
           repo_secrets: |
