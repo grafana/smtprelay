@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.3.1](https://github.com/grafana/smtprelay/compare/v2.3.0...v2.3.1) (2025-12-01)
+
+
+### Dependencies
+
+* **actions:** bump actions/checkout from 5.0.0 to 6.0.0 ([#451](https://github.com/grafana/smtprelay/issues/451)) ([f5fdc58](https://github.com/grafana/smtprelay/commit/f5fdc5894c0eb5a9e5f7f0e817f7e12c8de42197))
+* **actions:** bump actions/create-github-app-token from 2.1.4 to 2.2.0 ([#454](https://github.com/grafana/smtprelay/issues/454)) ([1ec61ae](https://github.com/grafana/smtprelay/commit/1ec61aebab471ca1fbfc1e832475600b160e4859))
+* **actions:** bump actions/setup-go from 6.0.0 to 6.1.0 ([#450](https://github.com/grafana/smtprelay/issues/450)) ([5525f68](https://github.com/grafana/smtprelay/commit/5525f68df14a88ba0c6885e5bae60e5b0bbd88bb))
+* **actions:** bump github/codeql-action from 4.31.0 to 4.31.5 ([#458](https://github.com/grafana/smtprelay/issues/458)) ([0ce0d28](https://github.com/grafana/smtprelay/commit/0ce0d280dc5cedf1fe74ce7c8440a454eb7adbea))
+* **actions:** bump golangci/golangci-lint-action from 8.0.0 to 9.1.0 ([#453](https://github.com/grafana/smtprelay/issues/453)) ([9427605](https://github.com/grafana/smtprelay/commit/942760553f25291950e80fdd88f277f54b76fa15))
+* **actions:** bump grafana/shared-workflows ([#462](https://github.com/grafana/smtprelay/issues/462)) ([14ea2a4](https://github.com/grafana/smtprelay/commit/14ea2a4b73989eb0b86fead514598722fe39cfdb))
+* **docker:** bump golang from `aee43c3` to `8b6b77a` ([#432](https://github.com/grafana/smtprelay/issues/432)) ([63a5418](https://github.com/grafana/smtprelay/commit/63a5418bdbed366310a512dac1da69d59893644d))
+* **go:** bump github.com/prometheus/common from 0.67.2 to 0.67.4 ([#456](https://github.com/grafana/smtprelay/issues/456)) ([918efc5](https://github.com/grafana/smtprelay/commit/918efc5e2e395f28d74123d44d069014ebf05059))
+* **go:** bump golang.org/x/crypto from 0.43.0 to 0.45.0 ([#448](https://github.com/grafana/smtprelay/issues/448)) ([a4a902e](https://github.com/grafana/smtprelay/commit/a4a902ef67ace333f1158fedd1880ea0d3d00228))
+
 ## [2.3.0](https://github.com/grafana/smtprelay/compare/v2.2.3...v2.3.0) (2025-10-30)
 
 
