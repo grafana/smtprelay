@@ -1,4 +1,4 @@
-FROM golang:1.25-alpine@sha256:8b6b77a5e6a9dda591e864e1a2856d436d94219befa5f54d7ce76d2a77cc7a06 AS build
+FROM golang:1.25-alpine@sha256:ac09a5f469f307e5da71e766b0bd59c9c49ea460a528cc3e6686513d64a6f1fb AS build
 
 RUN apk add --no-cache ca-certificates make git
 
