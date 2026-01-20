@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.3.2](https://github.com/grafana/smtprelay/compare/v2.3.1...v2.3.2) (2026-01-20)
+
+
+### Bug Fixes
+
+* **deps:** update module golang.org/x/crypto to v0.47.0 ([#505](https://github.com/grafana/smtprelay/issues/505)) ([8970f50](https://github.com/grafana/smtprelay/commit/8970f5012a5137a88bfa6f34a7d514015692a114))
+
+
+### Dependencies
+
+* **actions:** bump actions/setup-go from 6.1.0 to 6.2.0 ([#501](https://github.com/grafana/smtprelay/issues/501)) ([d571bff](https://github.com/grafana/smtprelay/commit/d571bff7a0e53a63976a48f27128684e776e50bd))
+* **actions:** bump aquasecurity/setup-trivy from 0.2.4 to 0.2.5 ([#508](https://github.com/grafana/smtprelay/issues/508)) ([e03bb8d](https://github.com/grafana/smtprelay/commit/e03bb8dad65d5a8151fa4b7776d955e4deafb0aa))
+* **actions:** bump github/codeql-action from 4.31.9 to 4.31.10 ([#499](https://github.com/grafana/smtprelay/issues/499)) ([1bef95d](https://github.com/grafana/smtprelay/commit/1bef95dbd880174cfe125d673687d9092d223861))
+* **actions:** bump grafana/shared-workflows ([#510](https://github.com/grafana/smtprelay/issues/510)) ([d2a3563](https://github.com/grafana/smtprelay/commit/d2a35633d7c0a09ac2d0a57339ff074c031c7eb4))
+* **go:** bump golang.org/x/crypto from 0.46.0 to 0.47.0 ([#500](https://github.com/grafana/smtprelay/issues/500)) ([63d30d3](https://github.com/grafana/smtprelay/commit/63d30d39144b309f5b0636b54b3a6285ac6b52f4))
+
 ## [2.3.1](https://github.com/grafana/smtprelay/compare/v2.3.0...v2.3.1) (2026-01-06)
 
 
