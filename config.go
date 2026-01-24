@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -14,41 +15,43 @@ import (
 
 //nolint:govet
 type config struct {
-	logFormat         string
-	hostName          string
-	welcomeMsg        string
-	listen            string
-	metricsListen     string
-	localCert         string
-	localKey          string
-	localForceTLS     bool
-	allowedNetsStr    string
-	allowedSender     string
-	allowedRecipients string
-	deniedRecipients  string
-	allowedUsers      string
-	remoteHost        string
-	remoteUser        string
-	maxMessageSize    int
-	maxConnections    int
-	maxRecipients     int
-	readTimeout       time.Duration
-	writeTimeout      time.Duration
-	dataTimeout       time.Duration
-	remotePass        string
-	remoteAuth        string
-	remoteSender      string
-	versionInfo       bool
-	logLevel          string
-	logHeadersStr     string
-
+	logFormat                  string
+	hostName                   string
+	welcomeMsg                 string
+	listen                     string
+	metricsListen              string
+	localCert                  string
+	localKey                   string
+	localForceTLS              bool
+	allowedNetsStr             string
+	allowedSender              string
+	allowedRecipients          string
+	deniedRecipients           string
+	allowedUsers               string
+	remoteHost                 string
+	remoteUser                 string
+	maxMessageSize             int
+	maxConnections             int
+	maxRecipients              int
+	readTimeout                time.Duration
+	writeTimeout               time.Duration
+	dataTimeout                time.Duration
+	remotePass                 string
+	remoteAuth                 string
+	remoteSender               string
+	versionInfo                bool
+	logLevel                   string
+	logHeadersStr              string
 	rateLimitEnabled           bool
 	rateLimitMessagesPerSecond float64
 	rateLimitBurst             int
 	rateLimitHeader            string
-
-	allowedNets []*net.IPNet
-	logHeaders  map[string]string
+	xoauth2ClientID            string
+	xoauth2ClientSecret        string
+	xoauth2TokenURL            string
+	xoauth2RefreshToken        string
+	allowedNets                []*net.IPNet
+	logHeaders                 map[string]string
 }
 
 func setupAllowedNetworks(s string) ([]*net.IPNet, error) {
@@ -93,6 +96,25 @@ func loadConfig() (*config, error) {
 		}
 	}
 
+	//nolint:nestif
+	if cfg.remoteAuth == "xoauth2" {
+		if cfg.remoteUser == "" {
+			return nil, errors.New("remote_user is required for xoauth2 authentication")
+		}
+		if cfg.xoauth2ClientID == "" {
+			return nil, errors.New("xoauth2_client_id is required for xoauth2 authentication")
+		}
+		if cfg.xoauth2ClientSecret == "" {
+			return nil, errors.New("xoauth2_client_secret is required for xoauth2 authentication")
+		}
+		if cfg.xoauth2RefreshToken == "" {
+			return nil, errors.New("xoauth2_refresh_token is required for xoauth2 authentication")
+		}
+		if cfg.xoauth2TokenURL == "" {
+			return nil, errors.New("xoauth2_token_url is required for xoauth2 authentication")
+		}
+	}
+
 	allowedNets, err := setupAllowedNetworks(cfg.allowedNetsStr)
 	if err != nil {
 		return nil, fmt.Errorf("setupAllowedNetworks: %w", err)
@@ -127,7 +149,7 @@ func registerFlags(f *flag.FlagSet, cfg *config) {
 	f.DurationVar(&cfg.writeTimeout, "write_timeout", 60*time.Second, "Socket timeout for write operations")
 	f.DurationVar(&cfg.dataTimeout, "data_timeout", 5*time.Minute, "Socket timeout for DATA command")
 	f.StringVar(&cfg.remotePass, "remote_pass", "", "Password for authentication on outgoing SMTP server (set $REMOTE_PASS to use env var instead)")
-	f.StringVar(&cfg.remoteAuth, "remote_auth", "plain", "Auth method on outgoing SMTP server (plain, login)")
+	f.StringVar(&cfg.remoteAuth, "remote_auth", "plain", "Auth method on outgoing SMTP server (plain, login, xoauth2)")
 	f.StringVar(&cfg.remoteSender, "remote_sender", "", "Sender email address on outgoing SMTP server")
 	f.BoolVar(&cfg.versionInfo, "version", false, "Show version information")
 	f.StringVar(&cfg.logLevel, "log_level", "debug", "Minimum log level to output")
@@ -136,6 +158,10 @@ func registerFlags(f *flag.FlagSet, cfg *config) {
 	f.Float64Var(&cfg.rateLimitMessagesPerSecond, "rate_limit_messages_per_second", 10, "Maximum messages per second per sender")
 	f.IntVar(&cfg.rateLimitBurst, "rate_limit_burst", 5, "Burst capacity for rate limiter")
 	f.StringVar(&cfg.rateLimitHeader, "rate_limit_header", "", "Email header to extract sender identity for rate limiting (by default, the sender address is used)")
+	f.StringVar(&cfg.xoauth2ClientID, "xoauth2_client_id", "", "Client ID for OAuth2 authentication")
+	f.StringVar(&cfg.xoauth2ClientSecret, "xoauth2_client_secret", "", "Client secret for OAuth2 authentication")
+	f.StringVar(&cfg.xoauth2RefreshToken, "xoauth2_refresh_token", "", "Refresh token for OAuth2 authentication")
+	f.StringVar(&cfg.xoauth2TokenURL, "xoauth2_token_url", "", "OAuth2 token endpoint URL")
 }
 
 // parse the input into a map[string]string. It should be in the form of
