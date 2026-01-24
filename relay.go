@@ -21,6 +21,7 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 	"go.opentelemetry.io/otel/trace"
+	"golang.org/x/oauth2"
 )
 
 // relay is an SMTP relay server which can listen on a single address
@@ -29,6 +30,7 @@ type relay struct {
 
 	cfg         *config
 	rateLimiter *rateLimiter
+	oauth2Token *oauth2.Token
 }
 
 func newRelay(cfg *config) (*relay, error) {
@@ -66,6 +68,11 @@ func newRelay(cfg *config) (*relay, error) {
 		r.rateLimiter = newRateLimiter(cfg.rateLimitMessagesPerSecond, cfg.rateLimitBurst)
 	}
 
+	if cfg.remoteAuth == "xoauth2" {
+		r.oauth2Token = &oauth2.Token{
+			RefreshToken: cfg.xoauth2RefreshToken,
+		}
+	}
 	return r, nil
 }
 
@@ -346,10 +353,30 @@ func (r *relay) mailHandler(cfg *config) func(ctx context.Context, peer smtpd.Pe
 		var auth smtp.Auth
 		host, _, _ := net.SplitHostPort(cfg.remoteHost)
 
-		if cfg.remoteUser != "" && cfg.remotePass != "" {
+		if cfg.remoteUser != "" && (cfg.remotePass != "" || cfg.remoteAuth == "xoauth2") {
 			switch cfg.remoteAuth {
 			case "plain":
 				auth = smtp.PlainAuth("", cfg.remoteUser, cfg.remotePass, host)
+			case "xoauth2":
+				conf := &oauth2.Config{
+					ClientID:     cfg.xoauth2ClientID,
+					ClientSecret: cfg.xoauth2ClientSecret,
+					Endpoint: oauth2.Endpoint{
+						TokenURL:  cfg.xoauth2TokenURL,
+						AuthStyle: oauth2.AuthStyleAutoDetect,
+					},
+				}
+
+				var authToken *oauth2.Token
+				authToken, err = conf.TokenSource(ctx, r.oauth2Token).Token()
+				if err != nil {
+					return fmt.Errorf("OAuth2 token fetching failed: %w", err)
+				}
+				auth = &xoauth2Auth{
+					user:  cfg.remoteUser,
+					token: authToken.AccessToken,
+				}
+
 			default:
 				logger.ErrorContext(ctx, "unsupported auth method", slog.String("method", cfg.remoteAuth))
 
