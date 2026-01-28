@@ -28,9 +28,10 @@ import (
 type relay struct {
 	server *smtpd.Server
 
-	cfg         *config
-	rateLimiter *rateLimiter
-	oauth2Token *oauth2.Token
+	cfg          *config
+	rateLimiter  *rateLimiter
+	oauth2Token  *oauth2.Token
+	oauth2Config *oauth2.Config
 }
 
 func newRelay(cfg *config) (*relay, error) {
@@ -69,6 +70,15 @@ func newRelay(cfg *config) (*relay, error) {
 	}
 
 	if cfg.remoteAuth == "xoauth2" {
+		r.oauth2Config = &oauth2.Config{
+			ClientID:     cfg.xoauth2ClientID,
+			ClientSecret: cfg.xoauth2ClientSecret,
+			Endpoint: oauth2.Endpoint{
+				TokenURL:  cfg.xoauth2TokenURL,
+				AuthStyle: oauth2.AuthStyleAutoDetect,
+			},
+		}
+
 		r.oauth2Token = &oauth2.Token{
 			RefreshToken: cfg.xoauth2RefreshToken,
 		}
@@ -358,17 +368,8 @@ func (r *relay) mailHandler(cfg *config) func(ctx context.Context, peer smtpd.Pe
 			case "plain":
 				auth = smtp.PlainAuth("", cfg.remoteUser, cfg.remotePass, host)
 			case "xoauth2":
-				conf := &oauth2.Config{
-					ClientID:     cfg.xoauth2ClientID,
-					ClientSecret: cfg.xoauth2ClientSecret,
-					Endpoint: oauth2.Endpoint{
-						TokenURL:  cfg.xoauth2TokenURL,
-						AuthStyle: oauth2.AuthStyleAutoDetect,
-					},
-				}
-
 				var authToken *oauth2.Token
-				authToken, err = conf.TokenSource(ctx, r.oauth2Token).Token()
+				authToken, err = r.oauth2Config.TokenSource(ctx, r.oauth2Token).Token()
 				if err != nil {
 					return fmt.Errorf("OAuth2 token fetching failed: %w", err)
 				}
@@ -376,7 +377,6 @@ func (r *relay) mailHandler(cfg *config) func(ctx context.Context, peer smtpd.Pe
 					user:  cfg.remoteUser,
 					token: authToken.AccessToken,
 				}
-
 			default:
 				logger.ErrorContext(ctx, "unsupported auth method", slog.String("method", cfg.remoteAuth))
 
