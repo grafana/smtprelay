@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -92,6 +93,21 @@ func loadConfig() (*config, error) {
 			logger.Debug("found data in REMOTE_PASS env var")
 		} else {
 			logger.Debug("no data found in REMOTE_PASS env var")
+		}
+	}
+
+	if cfg.remoteAuth == "xoauth2" {
+		if cfg.xoauth2ClientID == "" {
+			return nil, errors.New("xoauth2_client_id is required for xoauth2 authentication")
+		}
+		if cfg.xoauth2ClientSecret == "" {
+			return nil, errors.New("xoauth2_client_secret is required for xoauth2 authentication")
+		}
+		if cfg.xoauth2RefreshToken == "" {
+			return nil, errors.New("xoauth2_refresh_token is required for xoauth2 authentication")
+		}
+		if cfg.xoauth2TokenURL == "" {
+			return nil, errors.New("xoauth2_token_url is required for xoauth2 authentication")
 		}
 	}
 
