@@ -373,6 +373,11 @@ func (r *relay) mailHandler(cfg *config) func(ctx context.Context, peer smtpd.Pe
 			switch cfg.remoteAuth {
 			case "plain":
 				auth = smtp.PlainAuth("", cfg.remoteUser, cfg.remotePass, host)
+			case "login":
+				auth = &loginAuth{
+					username: cfg.remoteUser,
+					password: cfg.remotePass,
+				}
 			case "xoauth2":
 				var authToken *oauth2.Token
 
