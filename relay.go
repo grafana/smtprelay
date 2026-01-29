@@ -366,7 +366,10 @@ func (r *relay) mailHandler(cfg *config) func(ctx context.Context, peer smtpd.Pe
 		var auth smtp.Auth
 		host, _, _ := net.SplitHostPort(cfg.remoteHost)
 
-		if cfg.remoteUser != "" && (cfg.remotePass != "" || cfg.remoteAuth == "xoauth2") {
+		hasUser := cfg.remoteUser != ""
+		canAuth := hasUser && (cfg.remotePass != "" || cfg.remoteAuth == "xoauth2")
+
+		if canAuth {
 			switch cfg.remoteAuth {
 			case "plain":
 				auth = smtp.PlainAuth("", cfg.remoteUser, cfg.remotePass, host)

@@ -97,6 +97,9 @@ func loadConfig() (*config, error) {
 	}
 
 	if cfg.remoteAuth == "xoauth2" {
+		if cfg.remoteUser == "" {
+			return nil, errors.New("remote_user is required for xoauth2 authentication")
+		}
 		if cfg.xoauth2ClientID == "" {
 			return nil, errors.New("xoauth2_client_id is required for xoauth2 authentication")
 		}
