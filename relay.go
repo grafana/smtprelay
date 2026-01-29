@@ -30,7 +30,6 @@ type relay struct {
 
 	cfg               *config
 	rateLimiter       *rateLimiter
-	oauth2Config      *oauth2.Config
 	oauth2TokenSource oauth2.TokenSource
 }
 
@@ -70,7 +69,7 @@ func newRelay(ctx context.Context, cfg *config) (*relay, error) {
 	}
 
 	if cfg.remoteAuth == "xoauth2" {
-		r.oauth2Config = &oauth2.Config{
+		oauth2Config := &oauth2.Config{
 			ClientID:     cfg.xoauth2ClientID,
 			ClientSecret: cfg.xoauth2ClientSecret,
 			Endpoint: oauth2.Endpoint{
@@ -85,7 +84,7 @@ func newRelay(ctx context.Context, cfg *config) (*relay, error) {
 
 		r.oauth2TokenSource = oauth2.ReuseTokenSource(
 			initialToken,
-			r.oauth2Config.TokenSource(ctx, initialToken))
+			oauth2Config.TokenSource(ctx, initialToken))
 	}
 	return r, nil
 }
