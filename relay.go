@@ -21,17 +21,19 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 	"go.opentelemetry.io/otel/trace"
+	"golang.org/x/oauth2"
 )
 
 // relay is an SMTP relay server which can listen on a single address
 type relay struct {
 	server *smtpd.Server
 
-	cfg         *config
-	rateLimiter *rateLimiter
+	cfg               *config
+	rateLimiter       *rateLimiter
+	oauth2TokenSource oauth2.TokenSource
 }
 
-func newRelay(cfg *config) (*relay, error) {
+func newRelay(ctx context.Context, cfg *config) (*relay, error) {
 	r := &relay{
 		cfg: cfg,
 	}
@@ -66,6 +68,24 @@ func newRelay(cfg *config) (*relay, error) {
 		r.rateLimiter = newRateLimiter(cfg.rateLimitMessagesPerSecond, cfg.rateLimitBurst)
 	}
 
+	if cfg.remoteAuth == "xoauth2" {
+		oauth2Config := &oauth2.Config{
+			ClientID:     cfg.xoauth2ClientID,
+			ClientSecret: cfg.xoauth2ClientSecret,
+			Endpoint: oauth2.Endpoint{
+				TokenURL:  cfg.xoauth2TokenURL,
+				AuthStyle: oauth2.AuthStyleAutoDetect,
+			},
+		}
+
+		initialToken := &oauth2.Token{
+			RefreshToken: cfg.xoauth2RefreshToken,
+		}
+
+		r.oauth2TokenSource = oauth2.ReuseTokenSource(
+			initialToken,
+			oauth2Config.TokenSource(ctx, initialToken))
+	}
 	return r, nil
 }
 
@@ -346,10 +366,25 @@ func (r *relay) mailHandler(cfg *config) func(ctx context.Context, peer smtpd.Pe
 		var auth smtp.Auth
 		host, _, _ := net.SplitHostPort(cfg.remoteHost)
 
-		if cfg.remoteUser != "" && cfg.remotePass != "" {
+		hasUser := cfg.remoteUser != ""
+		canAuth := hasUser && (cfg.remotePass != "" || cfg.remoteAuth == "xoauth2")
+
+		if canAuth {
 			switch cfg.remoteAuth {
 			case "plain":
 				auth = smtp.PlainAuth("", cfg.remoteUser, cfg.remotePass, host)
+			case "xoauth2":
+				var authToken *oauth2.Token
+
+				authToken, err = r.oauth2TokenSource.Token()
+				if err != nil {
+					return fmt.Errorf("OAuth2 token fetching failed: %w", err)
+				}
+
+				auth = &xoauth2Auth{
+					user:  cfg.remoteUser,
+					token: authToken.AccessToken,
+				}
 			default:
 				logger.ErrorContext(ctx, "unsupported auth method", slog.String("method", cfg.remoteAuth))
 

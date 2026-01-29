@@ -72,7 +72,7 @@ func run(ctx context.Context, cfg *config) error {
 		address := addresses[i]
 
 		var relay *relay
-		relay, err = newRelay(cfg)
+		relay, err = newRelay(ctx, cfg)
 		if err != nil {
 			return fmt.Errorf("error creating relay: %w", err)
 		}
