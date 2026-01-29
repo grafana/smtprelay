@@ -149,7 +149,7 @@ func registerFlags(f *flag.FlagSet, cfg *config) {
 	f.DurationVar(&cfg.writeTimeout, "write_timeout", 60*time.Second, "Socket timeout for write operations")
 	f.DurationVar(&cfg.dataTimeout, "data_timeout", 5*time.Minute, "Socket timeout for DATA command")
 	f.StringVar(&cfg.remotePass, "remote_pass", "", "Password for authentication on outgoing SMTP server (set $REMOTE_PASS to use env var instead)")
-	f.StringVar(&cfg.remoteAuth, "remote_auth", "plain", "Auth method on outgoing SMTP server (plain, login, xoauth2)")
+	f.StringVar(&cfg.remoteAuth, "remote_auth", "plain", "Auth method on outgoing SMTP server (plain, xoauth2)")
 	f.StringVar(&cfg.remoteSender, "remote_sender", "", "Sender email address on outgoing SMTP server")
 	f.BoolVar(&cfg.versionInfo, "version", false, "Show version information")
 	f.StringVar(&cfg.logLevel, "log_level", "debug", "Minimum log level to output")
