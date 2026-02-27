@@ -50,6 +50,7 @@ type config struct {
 	xoauth2ClientSecret        string
 	xoauth2TokenURL            string
 	xoauth2RefreshToken        string
+	xoauth2Scopes              string
 	allowedNets                []*net.IPNet
 	logHeaders                 map[string]string
 }
@@ -96,8 +97,8 @@ func loadConfig() (*config, error) {
 		}
 	}
 
-	//nolint:nestif
-	if cfg.remoteAuth == "xoauth2" {
+	switch cfg.remoteAuth {
+	case "xoauth2":
 		if cfg.remoteUser == "" {
 			return nil, errors.New("remote_user is required for xoauth2 authentication")
 		}
@@ -107,11 +108,24 @@ func loadConfig() (*config, error) {
 		if cfg.xoauth2ClientSecret == "" {
 			return nil, errors.New("xoauth2_client_secret is required for xoauth2 authentication")
 		}
+		if cfg.xoauth2TokenURL == "" {
+			return nil, errors.New("xoauth2_token_url is required for xoauth2 authentication")
+		}
 		if cfg.xoauth2RefreshToken == "" {
 			return nil, errors.New("xoauth2_refresh_token is required for xoauth2 authentication")
 		}
+	case "xoauth2_client_credentials":
+		if cfg.remoteUser == "" {
+			return nil, errors.New("remote_user is required for xoauth2_client_credentials authentication")
+		}
+		if cfg.xoauth2ClientID == "" {
+			return nil, errors.New("xoauth2_client_id is required for xoauth2_client_credentials authentication")
+		}
+		if cfg.xoauth2ClientSecret == "" {
+			return nil, errors.New("xoauth2_client_secret is required for xoauth2_client_credentials authentication")
+		}
 		if cfg.xoauth2TokenURL == "" {
-			return nil, errors.New("xoauth2_token_url is required for xoauth2 authentication")
+			return nil, errors.New("xoauth2_token_url is required for xoauth2_client_credentials authentication")
 		}
 	}
 
@@ -149,7 +163,7 @@ func registerFlags(f *flag.FlagSet, cfg *config) {
 	f.DurationVar(&cfg.writeTimeout, "write_timeout", 60*time.Second, "Socket timeout for write operations")
 	f.DurationVar(&cfg.dataTimeout, "data_timeout", 5*time.Minute, "Socket timeout for DATA command")
 	f.StringVar(&cfg.remotePass, "remote_pass", "", "Password for authentication on outgoing SMTP server (set $REMOTE_PASS to use env var instead)")
-	f.StringVar(&cfg.remoteAuth, "remote_auth", "plain", "Auth method on outgoing SMTP server (plain, xoauth2)")
+	f.StringVar(&cfg.remoteAuth, "remote_auth", "plain", "Auth method on outgoing SMTP server (plain, xoauth2, xoauth2_client_credentials)")
 	f.StringVar(&cfg.remoteSender, "remote_sender", "", "Sender email address on outgoing SMTP server")
 	f.BoolVar(&cfg.versionInfo, "version", false, "Show version information")
 	f.StringVar(&cfg.logLevel, "log_level", "debug", "Minimum log level to output")
@@ -162,6 +176,7 @@ func registerFlags(f *flag.FlagSet, cfg *config) {
 	f.StringVar(&cfg.xoauth2ClientSecret, "xoauth2_client_secret", "", "Client secret for OAuth2 authentication")
 	f.StringVar(&cfg.xoauth2RefreshToken, "xoauth2_refresh_token", "", "Refresh token for OAuth2 authentication")
 	f.StringVar(&cfg.xoauth2TokenURL, "xoauth2_token_url", "", "OAuth2 token endpoint URL")
+	f.StringVar(&cfg.xoauth2Scopes, "xoauth2_scopes", "", "Space-separated OAuth2 scopes for xoauth2_client_credentials authentication")
 }
 
 // parse the input into a map[string]string. It should be in the form of
