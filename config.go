@@ -32,6 +32,7 @@ type config struct {
 	remoteUser                 string
 	maxMessageSize             int
 	maxConnections             int
+	maxConnectionsPerIP        int
 	maxRecipients              int
 	readTimeout                time.Duration
 	writeTimeout               time.Duration
@@ -144,6 +145,7 @@ func registerFlags(f *flag.FlagSet, cfg *config) {
 	f.StringVar(&cfg.remoteUser, "remote_user", "", "Username for authentication on outgoing SMTP server")
 	f.IntVar(&cfg.maxMessageSize, "max_message_size", 51200000, "Max message size allowed in bytes")
 	f.IntVar(&cfg.maxConnections, "max_connections", 100, "Max number of concurrent connections, use -1 to disable")
+	f.IntVar(&cfg.maxConnectionsPerIP, "max_connections_per_ip", 10, "Max number of concurrent connections per source IP, use -1 to disable")
 	f.IntVar(&cfg.maxRecipients, "max_recipients", 100, "Max number of recipients on an email")
 	f.DurationVar(&cfg.readTimeout, "read_timeout", 60*time.Second, "Socket timeout for read operations")
 	f.DurationVar(&cfg.writeTimeout, "write_timeout", 60*time.Second, "Socket timeout for write operations")
