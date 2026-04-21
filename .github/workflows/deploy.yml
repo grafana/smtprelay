@@ -46,10 +46,11 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
-      - uses: grafana/shared-workflows/actions/build-push-to-dockerhub@e7a3275d4c4978a3514801ec55708f1c599a6906 # main
+      - uses: grafana/shared-workflows/actions/docker-build-push-image@21ae57f82e5256e5a418406388926d4ba24bccf2 # docker-build-push-image/v0.3.2
         id: push
         with:
-          repository: grafana/smtprelay
+          dockerhub-repository: grafana/smtprelay
+          registries: dockerhub
           platforms: linux/amd64
           push: "true"
           build-args: |-
