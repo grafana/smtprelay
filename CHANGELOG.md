@@ -1,5 +1,28 @@
 # Changelog
 
+## [2.4.1](https://github.com/grafana/smtprelay/compare/v2.4.0...v2.4.1) (2026-04-23)
+
+
+### Bug Fixes
+
+* **deps:** update module go.opentelemetry.io/contrib/samplers/jaegerremote to v0.36.0 ([#531](https://github.com/grafana/smtprelay/issues/531)) ([dc67212](https://github.com/grafana/smtprelay/commit/dc6721230a2eb5e71b4c2f005d99bc01c4dc4e4d))
+* **deps:** update module go.opentelemetry.io/contrib/samplers/jaegerremote to v0.37.0 ([#585](https://github.com/grafana/smtprelay/issues/585)) ([ff79f87](https://github.com/grafana/smtprelay/commit/ff79f87fecaf964c4870dd327f4f524e357f3806))
+* **deps:** update module go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc to v1.42.0 ([#532](https://github.com/grafana/smtprelay/issues/532)) ([6d24668](https://github.com/grafana/smtprelay/commit/6d246687b7de229d8cba0e8e100ab6d898b18b28))
+* **deps:** update module golang.org/x/crypto to v0.49.0 ([#538](https://github.com/grafana/smtprelay/issues/538)) ([573428b](https://github.com/grafana/smtprelay/commit/573428b8e39fdfbacad86e85c0c8feede1487975))
+* **deps:** update module golang.org/x/crypto to v0.50.0 ([#586](https://github.com/grafana/smtprelay/issues/586)) ([316dfe2](https://github.com/grafana/smtprelay/commit/316dfe2fdb719dedbbef223277596a7474e89647))
+* **deps:** update opentelemetry-go monorepo to v1.43.0 ([#578](https://github.com/grafana/smtprelay/issues/578)) ([54245df](https://github.com/grafana/smtprelay/commit/54245dfe27b7bb213e041b13514028889d87076c))
+
+
+### Dependencies
+
+* **actions:** bump actions/create-github-app-token from 2.2.1 to 3.0.0 ([#560](https://github.com/grafana/smtprelay/issues/560)) ([278703e](https://github.com/grafana/smtprelay/commit/278703e451a2230bb288df346a3d7a4fbefc27f3))
+* **actions:** bump actions/setup-go from 6.2.0 to 6.4.0 ([#573](https://github.com/grafana/smtprelay/issues/573)) ([7da2ada](https://github.com/grafana/smtprelay/commit/7da2adafec6546fb35a5fce8b8dc70038d72bb7f))
+* **docker:** bump golang from 1.25-alpine to 1.26-alpine ([#537](https://github.com/grafana/smtprelay/issues/537)) ([791c75b](https://github.com/grafana/smtprelay/commit/791c75be9d6aad0330591bd555529122b973d6b9))
+* **go:** bump golang.org/x/oauth2 from 0.34.0 to 0.36.0 ([#550](https://github.com/grafana/smtprelay/issues/550)) ([c78702a](https://github.com/grafana/smtprelay/commit/c78702afb54a9960b72c1beb7395d9fdca79ac23))
+* **go:** bump golang.org/x/time from 0.14.0 to 0.15.0 ([#551](https://github.com/grafana/smtprelay/issues/551)) ([e01ace1](https://github.com/grafana/smtprelay/commit/e01ace176eadbb4fbf5cec7eaa245b4cd69f9c12))
+* **go:** bump google.golang.org/grpc from 1.79.2 to 1.79.3 ([#568](https://github.com/grafana/smtprelay/issues/568)) ([f1c6a37](https://github.com/grafana/smtprelay/commit/f1c6a377253cf4c3532d7197605a648a810541cd))
+* **go:** bump the go-opentelemetry-io group with 5 updates ([#530](https://github.com/grafana/smtprelay/issues/530)) ([ccc20c0](https://github.com/grafana/smtprelay/commit/ccc20c01f637e4110d91d15cc3324877d075876e))
+
 ## [2.4.0](https://github.com/grafana/smtprelay/compare/v2.3.1...v2.4.0) (2026-01-29)
 
 
