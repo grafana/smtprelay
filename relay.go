@@ -45,14 +45,15 @@ func newRelay(ctx context.Context, cfg *config) (*relay, error) {
 		RecipientChecker:  r.recipientChecker(cfg.allowedRecipients, cfg.deniedRecipients),
 		Handler:           r.mailHandler(cfg),
 
-		Hostname:       cfg.hostName,
-		WelcomeMessage: cfg.welcomeMsg,
-		MaxMessageSize: cfg.maxMessageSize,
-		MaxConnections: cfg.maxConnections,
-		MaxRecipients:  cfg.maxRecipients,
-		ReadTimeout:    cfg.readTimeout,
-		WriteTimeout:   cfg.writeTimeout,
-		DataTimeout:    cfg.dataTimeout,
+		Hostname:            cfg.hostName,
+		WelcomeMessage:      cfg.welcomeMsg,
+		MaxMessageSize:      cfg.maxMessageSize,
+		MaxConnections:      cfg.maxConnections,
+		MaxConnectionsPerIP: cfg.maxConnectionsPerIP,
+		MaxRecipients:       cfg.maxRecipients,
+		ReadTimeout:         cfg.readTimeout,
+		WriteTimeout:        cfg.writeTimeout,
+		DataTimeout:         cfg.dataTimeout,
 	}
 
 	if cfg.allowedUsers != "" {
