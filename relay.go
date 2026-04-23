@@ -22,6 +22,7 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/clientcredentials"
 )
 
 // relay is an SMTP relay server which can listen on a single address
@@ -68,7 +69,8 @@ func newRelay(ctx context.Context, cfg *config) (*relay, error) {
 		r.rateLimiter = newRateLimiter(cfg.rateLimitMessagesPerSecond, cfg.rateLimitBurst)
 	}
 
-	if cfg.remoteAuth == "xoauth2" {
+	switch cfg.remoteAuth {
+	case "xoauth2":
 		oauth2Config := &oauth2.Config{
 			ClientID:     cfg.xoauth2ClientID,
 			ClientSecret: cfg.xoauth2ClientSecret,
@@ -85,6 +87,18 @@ func newRelay(ctx context.Context, cfg *config) (*relay, error) {
 		r.oauth2TokenSource = oauth2.ReuseTokenSource(
 			initialToken,
 			oauth2Config.TokenSource(ctx, initialToken))
+	case "xoauth2_client_credentials":
+		var scopes []string
+		if cfg.xoauth2Scopes != "" {
+			scopes = splitstr(cfg.xoauth2Scopes, ' ')
+		}
+		ccConfig := &clientcredentials.Config{
+			ClientID:     cfg.xoauth2ClientID,
+			ClientSecret: cfg.xoauth2ClientSecret,
+			TokenURL:     cfg.xoauth2TokenURL,
+			Scopes:       scopes,
+		}
+		r.oauth2TokenSource = oauth2.ReuseTokenSource(nil, ccConfig.TokenSource(ctx))
 	}
 	return r, nil
 }
@@ -367,13 +381,13 @@ func (r *relay) mailHandler(cfg *config) func(ctx context.Context, peer smtpd.Pe
 		host, _, _ := net.SplitHostPort(cfg.remoteHost)
 
 		hasUser := cfg.remoteUser != ""
-		canAuth := hasUser && (cfg.remotePass != "" || cfg.remoteAuth == "xoauth2")
+		canAuth := hasUser && (cfg.remotePass != "" || cfg.remoteAuth == "xoauth2" || cfg.remoteAuth == "xoauth2_client_credentials")
 
 		if canAuth {
 			switch cfg.remoteAuth {
 			case "plain":
 				auth = smtp.PlainAuth("", cfg.remoteUser, cfg.remotePass, host)
-			case "xoauth2":
+			case "xoauth2", "xoauth2_client_credentials":
 				var authToken *oauth2.Token
 
 				authToken, err = r.oauth2TokenSource.Token()
