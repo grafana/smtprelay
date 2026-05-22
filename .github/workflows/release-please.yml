@@ -14,19 +14,11 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
-      - name: Get App Credentials from Vault
-        uses: grafana/shared-workflows/actions/get-vault-secrets@051f0a1cef0e1ef9f92fbe57c65b1eec029c3904 # 1.2.0
-        id: get-secrets
-        with:
-          repo_secrets: |
-            GITHUB_APP_ID=release-trigger:client-id
-            GITHUB_APP_PRIVATE_KEY=release-trigger:private-key
-          export_env: false
-      - uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859 # v3.0.0
+      - name: Get GitHub App token
         id: app-token
+        uses: grafana/shared-workflows/actions/create-github-app-token@259ba21cb3ff07724f331e26d926d655d24b317b # create-github-app-token/v0.2.3
         with:
-          app-id: ${{ fromJSON(steps.get-secrets.outputs.secrets).GITHUB_APP_ID }}
-          private-key: ${{ fromJSON(steps.get-secrets.outputs.secrets).GITHUB_APP_PRIVATE_KEY }}
+          github_app: hosted-grafana-release-trigger
       - uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4.4.1
         with:
           token: ${{ steps.app-token.outputs.token }}
