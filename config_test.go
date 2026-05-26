@@ -36,3 +36,28 @@ func TestSetupAllowedNetworks(t *testing.T) {
 	_, err = setupAllowedNetworks("1.2.3.4/16")
 	require.Error(t, err)
 }
+
+func FuzzSetupAllowedNetworks(f *testing.F) {
+	f.Add("127.0.0.0/8 ::1/128")
+	f.Add("10.0.0.0/8")
+	f.Add("")
+	f.Add("not-a-cidr")
+	f.Add("192.168.1.0/24 10.0.0.0/8 172.16.0.0/12")
+	f.Add("192.168.1.100/24")
+
+	f.Fuzz(func(_ *testing.T, s string) {
+		_, _ = setupAllowedNetworks(s)
+	})
+}
+
+func FuzzParseLogHeaders(f *testing.F) {
+	f.Add("field1=X-Header-1 field2=X-Header-2")
+	f.Add("")
+	f.Add("noequals")
+	f.Add("=value")
+	f.Add("key=")
+
+	f.Fuzz(func(_ *testing.T, s string) {
+		parseLogHeaders(s)
+	})
+}

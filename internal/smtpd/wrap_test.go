@@ -1,8 +1,22 @@
 package smtpd
 
 import (
+	"strings"
 	"testing"
 )
+
+func FuzzWrap(f *testing.F) {
+	f.Add([]byte("short line"))
+	f.Add([]byte(strings.Repeat("a ", 100)))
+	f.Add([]byte("no-spaces-at-all" + strings.Repeat("x", 200)))
+	f.Add([]byte("line1\r\nline2\r\nline3"))
+	f.Add([]byte{})
+	f.Add([]byte(strings.Repeat("word ", 50) + "\r\n" + strings.Repeat("more ", 50)))
+
+	f.Fuzz(func(_ *testing.T, input []byte) {
+		wrap(input)
+	})
+}
 
 func TestWrap(t *testing.T) {
 	t.Parallel()
