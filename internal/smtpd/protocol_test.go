@@ -2,6 +2,21 @@ package smtpd
 
 import "testing"
 
+func FuzzParseLine(f *testing.F) {
+	f.Add("MAIL FROM:<test@example.org>")
+	f.Add("MAIL FROM: <test@example.org>")
+	f.Add("RCPT TO:<recipient@example.com>")
+	f.Add("EHLO localhost")
+	f.Add("AUTH PLAIN dGVzdAB0ZXN0AHBhc3M=")
+	f.Add("")
+	f.Add("XCLIENT NAME=foo ADDR=1.2.3.4 PORT=1234")
+	f.Add("PROXY TCP4 1.2.3.4 5.6.7.8 1234 25")
+
+	f.Fuzz(func(_ *testing.T, line string) {
+		parseLine(line)
+	})
+}
+
 func TestParseLine(t *testing.T) {
 	t.Parallel()
 

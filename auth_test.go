@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -90,4 +91,17 @@ func TestParseLine(t *testing.T) {
 			}
 		})
 	}
+}
+
+func FuzzAuthParseLine(f *testing.F) {
+	f.Add("user $2a$10$hash")
+	f.Add("user $2a$10$hash addr1@x.com,addr2@y.com")
+	f.Add("")
+	f.Add("onlyonefield")
+	f.Add("a b c d e")
+	f.Add(strings.Repeat("x", 10000))
+
+	f.Fuzz(func(_ *testing.T, line string) {
+		parseLine(line)
+	})
 }

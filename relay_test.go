@@ -248,6 +248,21 @@ func TestAddrAllowedSingleDomain(t *testing.T) {
 	}
 }
 
+func FuzzAddrAllowed(f *testing.F) {
+	f.Add("joe@abc.com", "joe@abc.com")
+	f.Add("bob@def.com", "@def.com")
+	f.Add("user", "user")
+	f.Add("foo@bar.com", "baz@quux.org")
+	f.Add("", "")
+	f.Add("a@b", "@b")
+	f.Add("x@y.z", "x")
+
+	f.Fuzz(func(_ *testing.T, addr, allowed string) {
+		allowedAddrs := splitstr(allowed, ',')
+		addrAllowed(addr, allowedAddrs)
+	})
+}
+
 func TestAddrAllowedMixed(t *testing.T) {
 	t.Parallel()
 
