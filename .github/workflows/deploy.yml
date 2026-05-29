@@ -70,7 +70,7 @@ jobs:
     needs: [version, push-docker]
     steps:
       - name: Trigger CD workflow
-        uses: grafana/shared-workflows/actions/trigger-argo-workflow@21ae57f82e5256e5a418406388926d4ba24bccf2 # main
+        uses: grafana/shared-workflows/actions/trigger-argo-workflow@acf6456bac4ea5991c8b1c4466b85e8b94d9a542 # main
         with:
           instance: ops
           namespace: hosted-grafana-cd
