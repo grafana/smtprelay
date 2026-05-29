@@ -49,8 +49,9 @@ jobs:
       - uses: grafana/shared-workflows/actions/docker-build-push-image@34f27887c37cafe70d34af57dfc86b468a31b8c4 # docker-build-push-image/v0.3.3
         id: push
         with:
-          dockerhub-repository: grafana/smtprelay
-          registries: dockerhub
+          registries: gar
+          gar-environment: prod
+          gar-repository: dockerhub-smtprelay-prod-mirror
           platforms: linux/amd64
           push: "true"
           build-args: |-
