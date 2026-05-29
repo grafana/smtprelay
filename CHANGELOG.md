@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.5.1](https://github.com/grafana/smtprelay/compare/v2.5.0...v2.5.1) (2026-05-29)
+
+
+### Bug Fixes
+
+* **ci:** migrate docker publish from dockerhub to gar mirror ([d5d2a9e](https://github.com/grafana/smtprelay/commit/d5d2a9e16669a97f0001b6afe700542b5a765726))
+
 ## [2.5.0](https://github.com/grafana/smtprelay/compare/v2.4.0...v2.5.0) (2026-05-29)
 
 
