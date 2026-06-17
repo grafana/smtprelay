@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.5.2](https://github.com/grafana/smtprelay/compare/v2.5.1...v2.5.2) (2026-06-17)
+
+
+### Bug Fixes
+
+* **deps:** update alpine docker tag to v3.24 ([0b5fe1d](https://github.com/grafana/smtprelay/commit/0b5fe1da599d8e3d8239ead3112b9009e2c2672b))
+* **deps:** update module github.com/prometheus/common to v0.68.1 ([#627](https://github.com/grafana/smtprelay/issues/627)) ([72958be](https://github.com/grafana/smtprelay/commit/72958be1177a3d48b928e38ed13f8a504fefee3e))
+* **deps:** update module golang.org/x/crypto to v0.53.0 ([#636](https://github.com/grafana/smtprelay/issues/636)) ([e7eea4e](https://github.com/grafana/smtprelay/commit/e7eea4ee43bae3f71f8f16597d15b007d4aeee44))
+
 ## [2.5.1](https://github.com/grafana/smtprelay/compare/v2.5.0...v2.5.1) (2026-05-29)
 
 
