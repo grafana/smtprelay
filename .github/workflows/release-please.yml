@@ -16,7 +16,7 @@ jobs:
     steps:
       - name: Get GitHub App token
         id: app-token
-        uses: grafana/shared-workflows/actions/create-github-app-token@34f27887c37cafe70d34af57dfc86b468a31b8c4 # create-github-app-token/v0.3.3
+        uses: grafana/shared-workflows/actions/create-github-app-token@c66d74df41cf4ed28a90da1d91c263f9d1609a21 # create-github-app-token/v0.3.4
         with:
           github_app: hosted-grafana-release-trigger
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
