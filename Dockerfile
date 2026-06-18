@@ -14,6 +14,8 @@ ENV CGO_ENABLED=0
 COPY go.mod go.sum ./
 RUN go mod download -x
 
+ARG GO_LDFLAGS
+
 COPY . ./
 RUN make build
 # sanity check - make sure the binary runs and is executable
