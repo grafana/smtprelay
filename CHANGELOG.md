@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.5.3](https://github.com/grafana/smtprelay/compare/v2.5.2...v2.5.3) (2026-06-19)
+
+
+### Bug Fixes
+
+* **docker:** use passed-in GO_LDFLAGS so release images report clean versions ([#644](https://github.com/grafana/smtprelay/issues/644)) ([08a10fc](https://github.com/grafana/smtprelay/commit/08a10fc39481f886e2e3fc704420c426dda050e6))
+
 ## [2.5.2](https://github.com/grafana/smtprelay/compare/v2.5.1...v2.5.2) (2026-06-17)
 
 
