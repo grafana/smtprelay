@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.5.4](https://github.com/grafana/smtprelay/compare/v2.5.3...v2.5.4) (2026-07-15)
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/grafana/pyroscope-go/godeltaprof to v0.1.12 ([#655](https://github.com/grafana/smtprelay/issues/655)) ([e28ed03](https://github.com/grafana/smtprelay/commit/e28ed03f9aedb7c7ed95c76beaa4020f9007c5c5))
+* **deps:** update module github.com/prometheus/common to v0.70.0 ([#646](https://github.com/grafana/smtprelay/issues/646)) ([d57caed](https://github.com/grafana/smtprelay/commit/d57caeda8d002721e078ad31571820cef4b421e9))
+
 ## [2.5.3](https://github.com/grafana/smtprelay/compare/v2.5.2...v2.5.3) (2026-06-19)
 
 
