@@ -27,8 +27,8 @@ github.com/grafana/pyroscope-go/godeltaprof v0.1.12 h1:X6OemT2WcLtxdmNukEQuIp0c+
 github.com/grafana/pyroscope-go/godeltaprof v0.1.12/go.mod h1:aNSXN1bn1VHAd06EiepmwhAabHsMc67gx8itecdF2c8=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0 h1:5VipnvEpbqr2gA2VbM+nYVbkIF28c5ZQfqCBQ5g2xfk=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0/go.mod h1:Hyl3n6Twe1hvtd9XUXDec4pTvgMSEixRuQKPTMH2bNs=
-github.com/jaegertracing/jaeger-idl v0.9.0 h1:dI4olA7ArW3cjXwVbic/aYKDbdlfe7V+9wPQqAdzu8Y=
-github.com/jaegertracing/jaeger-idl v0.9.0/go.mod h1:W+9vbcr2cVZyS6z/cbr540EOzSkKYml3hmaWEavxkB0=
+github.com/jaegertracing/jaeger-idl v0.11.1 h1:2pxvt/1uqfZDKEgAgMNPjJgCiHl6PAZfVY9dg0ijeLs=
+github.com/jaegertracing/jaeger-idl v0.11.1/go.mod h1:wWzFftH47XtPRkOM25NPNZ7zBhREWB5HtZBsWj25eW0=
 github.com/kisielk/errcheck v1.5.0/go.mod h1:pFxgyoBC7bSaBwPgfKdkLd5X25qrDl4LWUI2bnpBCr8=
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=
 github.com/klauspost/compress v1.19.2 h1:hMRETovs/pu/dVWN7zIT1PGG8t509MwT6bO7XSi26R8=
