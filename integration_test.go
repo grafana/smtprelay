@@ -190,6 +190,34 @@ func TestRateLimitBySender(t *testing.T) {
 }
 
 //nolint:paralleltest
+func TestMaxConnectionsPerIP(t *testing.T) {
+	ctx := t.Context()
+
+	srv := startTestSMTPServer(ctx, t)
+
+	addr := startRelayWithConfig(ctx, t, srv.addr, func(cfg *config) {
+		cfg.maxConnectionsPerIP = 2
+		cfg.maxConnections = -1
+	})
+
+	// wait for the startup probe connection to fully close (200ms session
+	// close delay in smtpd)
+	time.Sleep(500 * time.Millisecond)
+
+	c1, err := smtp.Dial(addr)
+	require.NoError(t, err)
+
+	c2, err := smtp.Dial(addr)
+	require.NoError(t, err)
+
+	_, err = smtp.Dial(addr)
+	require.Error(t, err, "3rd connection should be rejected with per-IP limit of 2")
+
+	c1.Close()
+	c2.Close()
+}
+
+//nolint:paralleltest
 func TestRateLimitByHeader(t *testing.T) {
 	ctx := t.Context()
 
