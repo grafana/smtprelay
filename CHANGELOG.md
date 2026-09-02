@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.5.4](https://github.com/grafana/smtprelay/compare/v2.5.3...v2.5.4) (2026-09-02)
+
+
+### Bug Fixes
+
+* **create-github-app-token:** Pin 0.3.1 version ([#675](https://github.com/grafana/smtprelay/issues/675)) ([1c3dba4](https://github.com/grafana/smtprelay/commit/1c3dba456a07bd5d6a70c3df1b6f3fb0d0837acc))
+* **deps:** update module github.com/grafana/pyroscope-go/godeltaprof to v0.1.12 ([#655](https://github.com/grafana/smtprelay/issues/655)) ([e28ed03](https://github.com/grafana/smtprelay/commit/e28ed03f9aedb7c7ed95c76beaa4020f9007c5c5))
+* **deps:** update module github.com/prometheus/client_golang to v1.24.1 ([#669](https://github.com/grafana/smtprelay/issues/669)) ([a195010](https://github.com/grafana/smtprelay/commit/a1950103d821e1b0d7c1171875409e07533fa8f1))
+* **deps:** update module github.com/prometheus/common to v0.70.0 ([#646](https://github.com/grafana/smtprelay/issues/646)) ([d57caed](https://github.com/grafana/smtprelay/commit/d57caeda8d002721e078ad31571820cef4b421e9))
+* **deps:** update module github.com/prometheus/common to v0.70.1 ([#672](https://github.com/grafana/smtprelay/issues/672)) ([341ea75](https://github.com/grafana/smtprelay/commit/341ea75126ec270501a8626b3dbe7b8f6d0f3762))
+* **deps:** update module github.com/stretchr/testify to v1.12.1 ([#686](https://github.com/grafana/smtprelay/issues/686)) ([907d998](https://github.com/grafana/smtprelay/commit/907d998fa3bd3d2f0f9ab6071882e5ab2a232bc3))
+* **deps:** update module go.opentelemetry.io/contrib/samplers/jaegerremote to v0.37.3 ([#677](https://github.com/grafana/smtprelay/issues/677)) ([171d39e](https://github.com/grafana/smtprelay/commit/171d39ec6d20273767319d9906baac81e826d818))
+* **deps:** update opentelemetry-go monorepo to v1.46.0 ([#687](https://github.com/grafana/smtprelay/issues/687)) ([95c7bf6](https://github.com/grafana/smtprelay/commit/95c7bf687a49adda924979b851f3f3e6244869e1))
+* **security/high/:** update module google.golang.org/grpc to v1.82.1 [security] ([#667](https://github.com/grafana/smtprelay/issues/667)) ([6c22597](https://github.com/grafana/smtprelay/commit/6c22597e9a613c29512ac9825624fe00e183fb30))
+* **security/high/:** update module google.golang.org/grpc to v1.83.1 [security] ([#683](https://github.com/grafana/smtprelay/issues/683)) ([1a3c99f](https://github.com/grafana/smtprelay/commit/1a3c99f9266144c53666dd81606ade664ffd16a2))
+* **security/unknown/:** update module golang.org/x/crypto to v0.55.0 [security] ([#676](https://github.com/grafana/smtprelay/issues/676)) ([c54ef82](https://github.com/grafana/smtprelay/commit/c54ef8278848727cfe677474f784ea27f18359ec))
+
 ## [2.5.3](https://github.com/grafana/smtprelay/compare/v2.5.2...v2.5.3) (2026-06-19)
 
 
