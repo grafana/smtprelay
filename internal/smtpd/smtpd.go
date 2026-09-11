@@ -31,9 +31,10 @@ type Server struct {
 	WriteTimeout time.Duration // Socket timeout for write operations. (default: 60s)
 	DataTimeout  time.Duration // Socket timeout for DATA command (default: 5m)
 
-	MaxConnections int // Max concurrent connections, use -1 to disable. (default: 100)
-	MaxMessageSize int // Max message size in bytes. (default: 10240000)
-	MaxRecipients  int // Max RCPT TO calls for each envelope. (default: 100)
+	MaxConnections      int // Max concurrent connections, use -1 to disable. (default: 100)
+	MaxConnectionsPerIP int // Max concurrent connections per source IP, use -1 to disable. (default: 10)
+	MaxMessageSize      int // Max message size in bytes. (default: 10240000)
+	MaxRecipients       int // Max RCPT TO calls for each envelope. (default: 100)
 
 	// New e-mails are handed off to this function.
 	// Can be left empty for a NOOP server.
@@ -192,12 +193,20 @@ func (srv *Server) Serve(ctx context.Context, l net.Listener) error {
 
 	l = &onceCloseListener{Listener: l}
 	defer l.Close()
+
+	srv.mu.Lock()
 	srv.listener = &l
+	srv.mu.Unlock()
 
 	var limiter chan struct{}
 
 	if srv.MaxConnections > 0 {
 		limiter = make(chan struct{}, srv.MaxConnections)
+	}
+
+	var perIPTracker *ipTracker
+	if srv.MaxConnectionsPerIP > 0 {
+		perIPTracker = newIPTracker(srv.MaxConnectionsPerIP)
 	}
 
 	// shut down the server if the context is cancelled, but wait for all
@@ -246,19 +255,31 @@ func (srv *Server) Serve(ctx context.Context, l net.Listener) error {
 		srv.waitgrp.Add(1)
 		go func() {
 			defer srv.waitgrp.Done()
-
-			if limiter != nil {
-				select {
-				case limiter <- struct{}{}:
-					session.serve(connCtx)
-					<-limiter
-				default:
-					session.reject()
-				}
-			} else {
-				session.serve(connCtx)
-			}
+			srv.handleConn(connCtx, session, limiter, perIPTracker)
 		}()
+	}
+}
+
+func (srv *Server) handleConn(ctx context.Context, session *session, limiter chan struct{}, perIPTracker *ipTracker) {
+	if perIPTracker != nil {
+		ip := extractIP(session.conn.RemoteAddr())
+		if !perIPTracker.acquire(ip) {
+			session.reject()
+			return
+		}
+		defer perIPTracker.release(ip)
+	}
+
+	if limiter != nil {
+		select {
+		case limiter <- struct{}{}:
+			defer func() { <-limiter }()
+			session.serve(ctx)
+		default:
+			session.reject()
+		}
+	} else {
+		session.serve(ctx)
 	}
 }
 
@@ -308,6 +329,10 @@ func (srv *Server) configureDefaults() {
 
 	if srv.MaxConnections == 0 {
 		srv.MaxConnections = 100
+	}
+
+	if srv.MaxConnectionsPerIP == 0 {
+		srv.MaxConnectionsPerIP = 10
 	}
 
 	if srv.MaxRecipients == 0 {
@@ -512,6 +537,60 @@ func (srv *Server) closeDoneChanLocked() {
 		// Safe to close here. We're the only closer, guarded
 		// by srv.mu.
 		close(ch)
+	}
+}
+
+func extractIP(addr net.Addr) string {
+	if tcpAddr, ok := addr.(*net.TCPAddr); ok {
+		if tcpAddr.Zone != "" {
+			return tcpAddr.IP.String() + "%" + tcpAddr.Zone
+		}
+
+		return tcpAddr.IP.String()
+	}
+
+	host, _, err := net.SplitHostPort(addr.String())
+	if err != nil {
+		return addr.String()
+	}
+
+	return host
+}
+
+// ipTracker limits the number of concurrent connections from a single IP.
+type ipTracker struct {
+	conns map[string]int
+	limit int
+	mu    sync.Mutex
+}
+
+func newIPTracker(limit int) *ipTracker {
+	return &ipTracker{
+		conns: make(map[string]int),
+		limit: limit,
+	}
+}
+
+func (t *ipTracker) acquire(ip string) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if t.conns[ip] >= t.limit {
+		return false
+	}
+
+	t.conns[ip]++
+
+	return true
+}
+
+func (t *ipTracker) release(ip string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	t.conns[ip]--
+	if t.conns[ip] <= 0 {
+		delete(t.conns, ip)
 	}
 }
 
