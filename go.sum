@@ -25,8 +25,8 @@ github.com/grafana/pyroscope-go/godeltaprof v0.1.12 h1:X6OemT2WcLtxdmNukEQuIp0c+
 github.com/grafana/pyroscope-go/godeltaprof v0.1.12/go.mod h1:aNSXN1bn1VHAd06EiepmwhAabHsMc67gx8itecdF2c8=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.32.0 h1:QMILzF8BA7xftE4zVORkRrlv08m12St3csK4RsyRgRs=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.32.0/go.mod h1:+ZQ6iUL8+ATyxGDQNuRKpNwJFdGDUi0e7E1QL9MvI7U=
-github.com/jaegertracing/jaeger-idl v0.11.1 h1:2pxvt/1uqfZDKEgAgMNPjJgCiHl6PAZfVY9dg0ijeLs=
-github.com/jaegertracing/jaeger-idl v0.11.1/go.mod h1:wWzFftH47XtPRkOM25NPNZ7zBhREWB5HtZBsWj25eW0=
+github.com/jaegertracing/jaeger-idl v0.13.2 h1:d1PYb9PBlFH9RHBmtthEKwGawGnJ31NlGSbD9+bZNW8=
+github.com/jaegertracing/jaeger-idl v0.13.2/go.mod h1:XGC1/asZXDZTJdN5ZUooZROTlAc6tsbW6sxtF0PNODk=
 github.com/kisielk/errcheck v1.5.0/go.mod h1:pFxgyoBC7bSaBwPgfKdkLd5X25qrDl4LWUI2bnpBCr8=
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=
 github.com/klauspost/compress v1.20.3 h1:zWNoFqq/lSuYQRim3dUXlXeA0IqwuZGicdG5ZTfY5j4=
@@ -51,8 +51,8 @@ github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9de
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 go.opentelemetry.io/auto/sdk v1.2.1 h1:jXsnJ4Lmnqd11kwkBV2LgLoFMZKizbCi5fNZ/ipaZ64=
 go.opentelemetry.io/auto/sdk v1.2.1/go.mod h1:KRTj+aOaElaLi+wW1kO/DZRXwkF4C5xPbEe3ZiIhN7Y=
-go.opentelemetry.io/contrib/samplers/jaegerremote v0.37.3 h1:20rKrm6q8YlSVwVObflwKd2abo9f8b3WsxJ6YTyQtE8=
-go.opentelemetry.io/contrib/samplers/jaegerremote v0.37.3/go.mod h1:2yFxWbgN2VupcMTWu57donCZ9I1lALhawQjNAK7Xmm4=
+go.opentelemetry.io/contrib/samplers/jaegerremote v0.38.0 h1:8aH+9AGEhOpbDKahZkwWcxiwoMYH+rlRRz5nD33ttrI=
+go.opentelemetry.io/contrib/samplers/jaegerremote v0.38.0/go.mod h1:ZiDcJub/DU2OwJWQrGYhVB9rz6QlGgq4RYgmargUSwY=
 go.opentelemetry.io/otel v1.47.0 h1:j7ALJ/zgkS7Z6aeJW09p8VC9804bC+PpeTfCD4XPnOM=
 go.opentelemetry.io/otel v1.47.0/go.mod h1:8wS9O2qfXrYrzp6hIF/HOYJJf/wIhFPhR2xLuP+iXQU=
 go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.47.0 h1:julhjPeUH/q/7hinbSdDdqt5h7Zw9YWmRlWRhI0jd54=
