@@ -10,7 +10,7 @@ require (
 	github.com/prometheus/common v0.72.0
 	github.com/stretchr/testify v1.12.1
 	github.com/vharitonsky/iniflags v0.0.0-20180513140207-a33cd0b5f3de
-	go.opentelemetry.io/contrib/samplers/jaegerremote v0.37.3
+	go.opentelemetry.io/contrib/samplers/jaegerremote v0.38.0
 	go.opentelemetry.io/otel v1.47.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.47.0
 	go.opentelemetry.io/otel/sdk v1.47.0
@@ -29,7 +29,7 @@ require (
 	github.com/gogo/googleapis v1.4.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.32.0 // indirect
-	github.com/jaegertracing/jaeger-idl v0.11.1 // indirect
+	github.com/jaegertracing/jaeger-idl v0.13.2 // indirect
 	github.com/klauspost/compress v1.20.3 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/prometheus/client_model v0.6.3 // indirect
