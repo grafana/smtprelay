@@ -66,7 +66,7 @@ func run(ctx context.Context, cfg *config) error {
 
 	addresses := strings.Split(cfg.listen, " ")
 
-	errch := make(chan error)
+	errch := make(chan error, len(addresses))
 
 	for i := range addresses {
 		address := addresses[i]
@@ -86,15 +86,15 @@ func run(ctx context.Context, cfg *config) error {
 		slog.InfoContext(ctx, "listening on address", slog.String("address", address))
 
 		defer func(ctx context.Context) {
-			slog.WarnContext(ctx, "closing listener", slog.String("address", address))
+			slog.InfoContext(ctx, "closing listener", slog.String("address", address))
 
 			_ = relay.shutdown(ctx)
 		}(ctx)
 
 		go func() {
 			serveErr := relay.serve(ctx, listener)
-			if serveErr != nil && !errors.Is(serveErr, smtpd.ErrServerClosed) {
-				serveErr = fmt.Errorf("relay shutdown with an error: %w", serveErr)
+			if errors.Is(serveErr, smtpd.ErrServerClosed) || errors.Is(serveErr, context.Canceled) {
+				serveErr = nil
 			}
 
 			errch <- serveErr
@@ -104,12 +104,14 @@ func run(ctx context.Context, cfg *config) error {
 	// Now wait for the server to stop, either by a signal or by an error
 	select {
 	case err = <-errch:
-		err = fmt.Errorf("relay error: %w", err)
+		// a signal may race the relay returning, so treat that as graceful too
+		if err != nil && ctx.Err() == nil {
+			return fmt.Errorf("relay error: %w", err)
+		}
 	case <-ctx.Done():
-		// if we got to this point without err being set, it's probably due to
-		// a signal being received
-		err = fmt.Errorf("exiting: %w", ctx.Err())
 	}
 
-	return err
+	slog.InfoContext(ctx, "received shutdown signal, shutting down")
+
+	return nil
 }
