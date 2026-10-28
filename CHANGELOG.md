@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.5.5](https://github.com/grafana/smtprelay/compare/v2.5.4...v2.5.5) (2026-10-28)
+
+
+### Bug Fixes
+
+* **security/unknown/:** update module golang.org/x/net to v0.62.0 [security] ([#722](https://github.com/grafana/smtprelay/issues/722)) ([6f5d3f0](https://github.com/grafana/smtprelay/commit/6f5d3f0b73688b5b73b3d8f7f47bfb3e341a4b26))
+
 ## [2.5.4](https://github.com/grafana/smtprelay/compare/v2.5.3...v2.5.4) (2026-10-20)
 
 
