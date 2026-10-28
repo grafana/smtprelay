@@ -84,7 +84,9 @@ func mainCmd(t *testing.T, listen string) (*exec.Cmd, *bytes.Buffer) {
 		"-log_format", "logfmt",
 		"-log_level", "info",
 	)
-	cmd.Env = append(os.Environ(), mainHelperEnv+"=1")
+	// disable OTel so shutdown doesn't wait 5s trying to flush spans to a
+	// collector that isn't running
+	cmd.Env = append(os.Environ(), mainHelperEnv+"=1", "OTEL_SDK_DISABLED=true")
 
 	stderr := &bytes.Buffer{}
 	cmd.Stderr = stderr
@@ -92,8 +94,8 @@ func mainCmd(t *testing.T, listen string) (*exec.Cmd, *bytes.Buffer) {
 	return cmd, stderr
 }
 
-//nolint:paralleltest
 func TestRunReturnsNilOnContextCancel(t *testing.T) {
+	t.Setenv("OTEL_SDK_DISABLED", "true") // avoid 5s span flush on shutdown
 	metricsRegistry = prometheus.NewRegistry()
 
 	addr := freeAddr(t)

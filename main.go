@@ -104,11 +104,21 @@ func run(ctx context.Context, cfg *config) error {
 	// Now wait for the server to stop, either by a signal or by an error
 	select {
 	case err = <-errch:
-		// a signal may race the relay returning, so treat that as graceful too
-		if err != nil && ctx.Err() == nil {
-			return fmt.Errorf("relay error: %w", err)
-		}
 	case <-ctx.Done():
+	}
+
+	// a signal may race the relay returning, so check for it before stop()
+	// cancels ctx
+	signalled := ctx.Err() != nil
+
+	// restore default signal handling so a second signal forces an exit
+	stop()
+
+	if !signalled {
+		if err == nil {
+			err = errors.New("relay stopped unexpectedly")
+		}
+		return fmt.Errorf("relay error: %w", err)
 	}
 
 	slog.InfoContext(ctx, "received shutdown signal, shutting down")
