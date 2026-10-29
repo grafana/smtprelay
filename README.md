@@ -81,6 +81,10 @@ span's timing will miss the time spent before the `DATA` command.
 
 We publish images on DockerHub at [`grafana/smtprelay`](https://hub.docker.com/r/grafana/smtprelay)
 
+### Helm
+
+A community-maintaned Helm chart is available at [mreiche/smtprelay-helm](https://github.com/mreiche/smtprelay-helm)
+
 ### Manual Testing
 
 To test code or config, start smtprelay, and send test email using `swaks`.
