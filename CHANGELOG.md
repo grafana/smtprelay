@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.5.5](https://github.com/grafana/smtprelay/compare/v2.5.4...v2.5.5) (2026-11-03)
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/prometheus/common to v0.73.1 ([#727](https://github.com/grafana/smtprelay/issues/727)) ([ecda1fc](https://github.com/grafana/smtprelay/commit/ecda1fc4edeb3cc7173fbf83e0c1b6ec4fc58d24))
+* **security/unknown/:** update module golang.org/x/net to v0.62.0 [security] ([#722](https://github.com/grafana/smtprelay/issues/722)) ([6f5d3f0](https://github.com/grafana/smtprelay/commit/6f5d3f0b73688b5b73b3d8f7f47bfb3e341a4b26))
+
 ## [2.5.4](https://github.com/grafana/smtprelay/compare/v2.5.3...v2.5.4) (2026-10-20)
 
 
