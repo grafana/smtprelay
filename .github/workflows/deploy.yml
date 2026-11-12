@@ -46,7 +46,7 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
-      - uses: grafana/shared-workflows/actions/docker-build-push-image@210fd8662ec62738ab1ae6d890ef3ffed5a77a86 # docker-build-push-image/v0.3.5
+      - uses: grafana/shared-workflows/actions/docker-build-push-image@317d86931c8deacf670ceed195a81acebce14033 # docker-build-push-image/v1.0
         id: push
         with:
           registries: gar
