@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.5.5](https://github.com/grafana/smtprelay/compare/v2.5.4...v2.5.5) (2026-11-12)
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/prometheus/common to v0.73.1 ([#727](https://github.com/grafana/smtprelay/issues/727)) ([ecda1fc](https://github.com/grafana/smtprelay/commit/ecda1fc4edeb3cc7173fbf83e0c1b6ec4fc58d24))
+* **deps:** update module golang.org/x/oauth2 to v0.38.0 ([#734](https://github.com/grafana/smtprelay/issues/734)) ([0b0a594](https://github.com/grafana/smtprelay/commit/0b0a5944bf3df4b54165fb527d685efa1f399497))
+* **security/unknown/:** update module golang.org/x/crypto to v0.59.0 [security] ([#735](https://github.com/grafana/smtprelay/issues/735)) ([02c174d](https://github.com/grafana/smtprelay/commit/02c174d0736889538187cdb2abf81ea1f7119a74))
+* **security/unknown/:** update module golang.org/x/net to v0.62.0 [security] ([#722](https://github.com/grafana/smtprelay/issues/722)) ([6f5d3f0](https://github.com/grafana/smtprelay/commit/6f5d3f0b73688b5b73b3d8f7f47bfb3e341a4b26))
+
+
+### Documentation
+
+* Add Helm chart reference. Closes [#719](https://github.com/grafana/smtprelay/issues/719) ([#724](https://github.com/grafana/smtprelay/issues/724)) ([0a92e23](https://github.com/grafana/smtprelay/commit/0a92e2325735e337f1c060f25e6754fe59897a4a))
+
 ## [2.5.4](https://github.com/grafana/smtprelay/compare/v2.5.3...v2.5.4) (2026-10-20)
 
 
