@@ -620,6 +620,76 @@ func TestNoMaxConnections(t *testing.T) {
 	c1.Close()
 }
 
+func TestMaxConnectionsPerIP(t *testing.T) {
+	t.Parallel()
+
+	addr, closer := runserver(t, &smtpd.Server{
+		MaxConnectionsPerIP: 1,
+		MaxConnections:      -1,
+		ProtocolLogger:      log.New(os.Stdout, "log: ", log.Lshortfile),
+	})
+	defer closer()
+
+	c1, err := smtp.Dial(addr)
+	require.NoError(t, err)
+
+	_, err = smtp.Dial(addr)
+	require.Error(t, err, "Dial succeeded despite MaxConnectionsPerIP = 1")
+
+	c1.Close()
+
+	time.Sleep(300 * time.Millisecond)
+
+	c2, err := smtp.Dial(addr)
+	require.NoError(t, err)
+	c2.Close()
+}
+
+func TestMaxConnectionsPerIPWithHigherLimit(t *testing.T) {
+	t.Parallel()
+
+	addr, closer := runserver(t, &smtpd.Server{
+		MaxConnectionsPerIP: 3,
+		MaxConnections:      -1,
+		ProtocolLogger:      log.New(os.Stdout, "log: ", log.Lshortfile),
+	})
+	defer closer()
+
+	conns := make([]*smtp.Client, 3)
+	for i := range 3 {
+		c, err := smtp.Dial(addr)
+		require.NoError(t, err, "connection %d should succeed", i+1)
+		conns[i] = c
+	}
+
+	_, err := smtp.Dial(addr)
+	require.Error(t, err, "4th connection should be rejected")
+
+	for _, c := range conns {
+		c.Close()
+	}
+}
+
+func TestMaxConnectionsPerIPDisabled(t *testing.T) {
+	t.Parallel()
+
+	addr, closer := runserver(t, &smtpd.Server{
+		MaxConnectionsPerIP: -1,
+		MaxConnections:      -1,
+		ProtocolLogger:      log.New(os.Stdout, "log: ", log.Lshortfile),
+	})
+	defer closer()
+
+	c1, err := smtp.Dial(addr)
+	require.NoError(t, err)
+
+	c2, err := smtp.Dial(addr)
+	require.NoError(t, err)
+
+	c1.Close()
+	c2.Close()
+}
+
 func TestMaxRecipients(t *testing.T) {
 	t.Parallel()
 
