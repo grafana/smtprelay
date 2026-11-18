@@ -184,15 +184,23 @@ func (srv *Server) ListenAndServe(ctx context.Context, addr string) error {
 // Serve starts the SMTP server and listens on l, using ctx as the base context
 // for incoming requests.
 func (srv *Server) Serve(ctx context.Context, l net.Listener) error {
+	l = &onceCloseListener{Listener: l}
+
+	// register the listener and the accept loop under mu, so Shutdown either
+	// sees the listener or Serve sees the shutdown, and Wait also waits for
+	// the accept loop to exit before connection goroutines stop being added
+	srv.mu.Lock()
 	if srv.shuttingDown() {
+		srv.mu.Unlock()
 		return ErrServerClosed
 	}
+	srv.listener = &l
+	srv.waitgrp.Add(1)
+	srv.mu.Unlock()
+	defer srv.waitgrp.Done()
+	defer l.Close()
 
 	srv.configureDefaults()
-
-	l = &onceCloseListener{Listener: l}
-	defer l.Close()
-	srv.listener = &l
 
 	var limiter chan struct{}
 
@@ -298,6 +306,9 @@ func (srv *Server) Wait() error {
 
 // Address returns the listening address of the server
 func (srv *Server) Address() net.Addr {
+	srv.mu.Lock()
+	defer srv.mu.Unlock()
+
 	return (*srv.listener).Addr()
 }
 
